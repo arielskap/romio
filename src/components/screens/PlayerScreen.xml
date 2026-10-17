@@ -10,12 +10,15 @@
   <script type="text/brightscript" uri="pkg:/source/lib/Playback.brs" />
   <script type="text/brightscript" uri="pkg:/source/lib/Sources.brs" />
   <script type="text/brightscript" uri="pkg:/source/lib/Tracks.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Photos.brs" />
   <children>
     <Video id="video" width="1920" height="1080" enableUI="false" />
     <PlayerControls id="controls" visible="false" />
     <NextCard id="nextCard" translation="[1180,700]" visible="false" />
     <Group id="overlay">
       <Rectangle width="1920" height="1080" color="0x000000E0" />
+      <PhotoFrame id="photo" translation="[240,140]" visible="false" />
       <Label id="status" translation="[160,380]" width="1600" horizAlign="center" wrap="true" font="font:LargeBoldSystemFont" />
       <Label id="detail" translation="[160,470]" width="1600" horizAlign="center" wrap="true" />
       <LabelList id="choices" translation="[660,600]" itemSize="[600,60]" vertFocusAnimationStyle="floatingFocus" visible="false" />

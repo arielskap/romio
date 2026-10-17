@@ -4,6 +4,9 @@ sub init()
     m.status = m.top.findNode("status")
     m.detail = m.top.findNode("detail")
     m.choices = m.top.findNode("choices")
+    ' One photo per player session, kept across retries; "" without photos.
+    m.photo = m.top.findNode("photo")
+    m.photo.uri = Photos_next()
     m.menu = m.top.findNode("menu")
     m.subsList = m.top.findNode("subsList")
     m.menuTitle = m.top.findNode("menuTitle")
@@ -441,10 +444,32 @@ sub showOverlay(status as string, detail as string)
     hideFloating()
     m.status.text = status
     m.detail.text = detail
+    layoutOverlay(m.photo.uri <> "")
     m.choices.visible = false
     m.overlay.visible = true
     ' Hidden children (failure choices, controls, panels) would otherwise keep the keys under the overlay.
     Ui_parkFocus(m.top)
+end sub
+
+' Loading screens put the text to the right of the photo; failures (with choices) use the full width.
+sub layoutOverlay(withPhoto as boolean)
+    m.photo.visible = withPhoto
+    if withPhoto
+        m.status.translation = [880, 380]
+        m.status.width = 860
+        m.status.horizAlign = "left"
+        ' A wrapped status (retries) pushes the detail down instead of covering it.
+        m.detail.translation = [880, 400 + m.status.boundingRect().height]
+        m.detail.width = 860
+        m.detail.horizAlign = "left"
+    else
+        m.status.translation = [160, 380]
+        m.status.width = 1600
+        m.status.horizAlign = "center"
+        m.detail.translation = [160, 470]
+        m.detail.width = 1600
+        m.detail.horizAlign = "center"
+    end if
 end sub
 
 sub showFailure(text as string, keyProblem as boolean, offerStart = false as boolean)
@@ -454,6 +479,7 @@ sub showFailure(text as string, keyProblem as boolean, offerStart = false as boo
     hideFloating()
     m.status.text = "No se pudo reproducir"
     m.detail.text = text
+    layoutOverlay(false)
     m.choiceActions = []
     root = CreateObject("roSGNode", "ContentNode")
     if offerStart then addChoice(root, "Ver desde el principio", "start")
