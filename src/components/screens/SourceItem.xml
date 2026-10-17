@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One source in the sources list: quality box, compatibility color and phrase, pills and file name. -->
+<component name="SourceItem" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="onContent" />
+  </interface>
+  <script type="text/brightscript" uri="SourceItem.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common/Ui.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Sources.brs" />
+  <children>
+    <Rectangle width="1760" height="104" color="0xFFFFFF0D" />
+    <Rectangle id="qbox" translation="[20,26]" width="120" height="52" color="0xFFFFFFFF" />
+    <Label id="qtext" translation="[20,36]" width="120" horizAlign="center" color="0x000000FF" font="font:MediumBoldSystemFont" />
+    <Rectangle id="dot" translation="[170,18]" width="14" height="14" />
+    <Label id="phrase" translation="[196,8]" width="1540" font="font:SmallBoldSystemFont" />
+    <Group id="pills" />
+    <Label id="filename" translation="[170,74]" width="1560" color="0x8A8A8AFF" font="font:SmallestSystemFont" />
+  </children>
+</component>

@@ -1,0 +1,25 @@
+{
+  "extends": "bsconfig.json",
+  "files": [
+    "manifest",
+    "source/**/*",
+    "components/**/*",
+    "images/**/*"
+  ],
+  "stagingDir": "out/staging-test",
+  "outFile": "out/roku-stremio-test.zip",
+  "autoImportComponentScript": true,
+  "plugins": [
+    "rooibos-roku"
+  ],
+  "rooibos": {
+    "showOnlyFailures": false,
+    "catchCrashes": true,
+    "printTestTimes": false,
+    "lineWidth": 70,
+    "reporters": [
+      "console"
+    ],
+    "sendHomeOnFinish": true
+  }
+}

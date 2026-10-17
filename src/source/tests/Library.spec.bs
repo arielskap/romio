@@ -1,0 +1,256 @@
+namespace tests
+    @suite("Library")
+    class LibraryTests extends rooibos.BaseTestSuite
+
+        ' Server-shaped items: quoted keys through ParseJson, like datastoreGet output.
+        function items() as object
+            return ParseJson(FormatJson([
+                { "_id": "tt1", "name": "Old", "type": "movie", "removed": false, "temp": false, "state": { "lastWatched": "2026-10-01T10:00:00.1Z", "timeOffset": 5000, "duration": 100000, "video_id": "tt1" } },
+                { "_id": "tt2", "name": "Terror", "type": "series", "removed": false, "temp": false, "state": { "lastWatched": "2026-10-14T18:43:03.425295756Z", "timeOffset": 1, "duration": 2849568, "video_id": "tt2:3:4", "timeWatched": 1000, "overallTimeWatched": 5000 } },
+                { "_id": "tt3", "name": "Removed", "type": "movie", "removed": true, "temp": false, "state": { "lastWatched": "2026-10-15T00:00:00Z", "timeOffset": 10, "video_id": "tt3" } },
+                { "_id": "tt4", "name": "Temp", "type": "movie", "removed": true, "temp": true, "state": { "lastWatched": "2026-10-10T00:00:00Z", "timeOffset": 10, "video_id": "tt4" } },
+                { "_id": "tt5", "name": "Unwatched", "type": "movie", "removed": false, "temp": false, "state": { "lastWatched": "", "timeOffset": 0, "video_id": "" } },
+                { "_id": "tt6", "name": "No state", "type": "movie" }
+            ]))
+        end function
+
+        function hasKey(json as string, key as string) as boolean
+            return json.Instr(Chr(34) + key + Chr(34)) >= 0
+        end function
+
+        @describe("Library")
+
+        @it("builds continue watching, newest first, skipping removed and unwatched (missing fields)")
+        function _()
+            list = Library_continueWatching(m.items())
+            m.assertArrayCount(list, 3)
+            m.assertEqual(list[0]._id, "tt2")
+            m.assertEqual(list[1]._id, "tt4")
+            m.assertEqual(list[2]._id, "tt1")
+        end function
+
+        @it("labels series and movies")
+        function _()
+            list = m.items()
+            m.assertEqual(Library_continueLabel(list[1]), "T3 E4 · 0:00")
+            m.assertEqual(Library_continueLabel(list[0]), "0:05 de 1:40")
+        end function
+
+        @it("creates a temp item and writes camelCase JSON keys")
+        function _()
+            item = Library_newItem({ "id": "tt7", "name": "Hope", "type": "movie", "poster": "p" }, "2026-10-15T23:00:00Z")
+            m.assertTrue(item.temp)
+            m.assertTrue(item.removed)
+            json = FormatJson(Library_withProgress(item, "tt7", 60000, 120000, 60000, "2026-10-15T23:01:00Z"))
+            m.assertTrue(m.hasKey(json, "lastWatched"))
+            m.assertTrue(m.hasKey(json, "timeOffset"))
+            m.assertTrue(m.hasKey(json, "posterShape"))
+            m.assertTrue(m.hasKey(json, "_mtime"))
+            m.assertFalse(m.hasKey(json, "timeoffset"))
+            m.assertFalse(m.hasKey(json, "lastwatched"))
+        end function
+
+        @it("updates progress and accumulates watched time without duplicating keys")
+        function _()
+            item = m.items()[1]
+            out = Library_withProgress(item, "tt2:3:4", 60000, 2849568, 30000, "2026-10-15T23:00:00Z")
+            m.assertEqual(out.state.timeOffset, 60000)
+            m.assertEqual(out.state.timeWatched, 31000)
+            m.assertEqual(out.state.overallTimeWatched, 35000)
+            m.assertEqual(out.state.lastWatched, "2026-10-15T23:00:00Z")
+            m.assertEqual(out._mtime, "2026-10-15T23:00:00Z")
+            m.assertEqual(item.state.timeOffset, 1)
+            json = FormatJson(out)
+            m.assertFalse(m.hasKey(json, "timeoffset"))
+            m.assertFalse(m.hasKey(json, "overalltimewatched"))
+        end function
+
+        @it("resets per-video time when the episode changes")
+        function _()
+            item = m.items()[1]
+            out = Library_withProgress(item, "tt2:3:5", 1000, 2000, 1000, "2026-10-15T23:00:00Z")
+            m.assertEqual(out.state.video_id, "tt2:3:5")
+            m.assertEqual(out.state.timeWatched, 1000)
+        end function
+
+        @it("resumes only the same video and not near the end")
+        function _()
+            list = m.items()
+            m.assertEqual(Library_resumeMs(list[0], "tt1"), 5000)
+            m.assertEqual(Library_resumeMs(list[0], "other"), 0)
+            list[0].state["timeOffset"] = 98000
+            m.assertEqual(Library_resumeMs(list[0], "tt1"), 0)
+            m.assertEqual(Library_resumeMs(invalid, "tt1"), 0)
+        end function
+
+        @it("knows when the last video was watched to the end")
+        function _()
+            st = { "video_id": "tt1:1:5", "timeOffset": 2900000, "duration": 3000000 }
+            m.assertTrue(Library_atEnd({ "state": st }))
+            st["timeOffset"] = 1000000
+            m.assertFalse(Library_atEnd({ "state": st }))
+            m.assertFalse(Library_atEnd({ "state": { "timeOffset": 0, "duration": 0 } }))
+            m.assertFalse(Library_atEnd({ "state": invalid }))
+            m.assertFalse(Library_atEnd(invalid))
+        end function
+
+        @it("upserts by id")
+        function _()
+            list = Library_upsert(m.items(), { "_id": "tt1", "name": "New" })
+            m.assertArrayCount(list, 6)
+            m.assertEqual(Library_find(list, "tt1").name, "New")
+            m.assertArrayCount(Library_upsert(m.items(), { "_id": "tt99" }), 7)
+        end function
+
+        @it("does not overwrite a resume point it could not reach")
+        function _()
+            m.assertFalse(Library_shouldSave(true, 2043194, 30000))
+            m.assertTrue(Library_shouldSave(true, 2043194, 2050000))
+            m.assertTrue(Library_shouldSave(false, 2043194, 30000))
+            m.assertTrue(Library_shouldSave(false, 0, 30000))
+        end function
+
+        @it("merges pending items only when newer than the server copy")
+        function _()
+            server = m.items()
+            pending = ParseJson(FormatJson({
+                "tt1": { "_id": "tt1", "_mtime": "2026-09-01T00:00:00Z", "state": { "timeOffset": 1 } },
+                "tt2": { "_id": "tt2", "_mtime": "2026-10-20T00:00:00Z", "state": { "timeOffset": 777 } },
+                "tt9": { "_id": "tt9", "_mtime": "2026-10-20T00:00:00Z", "state": { "timeOffset": 5 } }
+            }))
+            server[0]["_mtime"] = "2026-10-01T00:00:00Z"
+            server[1]["_mtime"] = "2026-10-14T00:00:00Z"
+            out = Library_mergePending(server, pending)
+            m.assertArrayCount(out.toPut, 2)
+            m.assertEqual(Library_find(out.library, "tt2").state.timeOffset, 777)
+            m.assertEqual(Library_find(out.library, "tt1").state.timeOffset, 5000)
+            m.assertNotInvalid(Library_find(out.library, "tt9"))
+        end function
+
+        @it("keys pending items by id")
+        function _()
+            map = Library_pendingMap([{ "_id": "tt1", "_mtime": "a" }, { "_id": "tt2", "_mtime": "b" }])
+            m.assertEqual(map.Count(), 2)
+            m.assertEqual(map["tt2"]._mtime, "b")
+        end function
+
+        @it("skips malformed items in continue watching (missing fields)")
+        function _()
+            list = ParseJson(FormatJson([
+                { "_id": "tt1", "removed": false, "state": { "lastWatched": "2026-10-01T00:00:00Z", "timeOffset": 5000, "video_id": "tt1" } },
+                { "_id": "tt2", "name": "Ok", "type": "movie", "removed": false, "state": { "lastWatched": "2026-10-02T00:00:00Z", "timeOffset": 5000, "video_id": "tt2" } }
+            ]))
+            out = Library_continueWatching(list)
+            m.assertArrayCount(out, 1)
+            m.assertEqual(out[0]._id, "tt2")
+        end function
+
+        @it("caps pending items keeping the newest")
+        function _()
+            pending = {}
+            for i = 1 to 25
+                pending["tt" + i.ToStr()] = { "_id": "tt" + i.ToStr(), "_mtime": "2026-10-15T00:00:" + Format_pad(i) + "Z" }
+            end for
+            capped = Library_capPending(pending, 20)
+            m.assertEqual(capped.Count(), 20)
+            m.assertAAHasKey(capped, "tt25")
+            m.assertAANotHasKey(capped, "tt1")
+        end function
+
+        @describe("Home and my list")
+
+        @it("lists saved items only, newest first, filtered by type")
+        function _()
+            list = ParseJson(FormatJson([
+                { "_id": "tt1", "name": "A", "type": "movie", "removed": false, "temp": false, "_mtime": "2026-10-01T00:00:00Z" },
+                { "_id": "tt2", "name": "B", "type": "series", "removed": false, "temp": false, "_mtime": "2026-10-03T00:00:00Z" },
+                { "_id": "tt3", "name": "C", "type": "movie", "removed": true, "temp": false, "_mtime": "2026-10-04T00:00:00Z" },
+                { "_id": "tt4", "name": "D", "type": "movie", "removed": true, "temp": true, "_mtime": "2026-10-05T00:00:00Z" },
+                { "_id": "tt5", "name": "E", "type": "movie", "removed": false, "temp": false, "_mtime": "2026-10-02T00:00:00Z" }
+            ]))
+            all = Library_myList(list, "")
+            m.assertArrayCount(all, 3)
+            m.assertEqual(all[0]._id, "tt2")
+            m.assertEqual(all[1]._id, "tt5")
+            m.assertEqual(all[2]._id, "tt1")
+            movies = Library_myList(list, "movie")
+            m.assertArrayCount(movies, 2)
+            m.assertEqual(movies[0]._id, "tt5")
+        end function
+
+        @it("computes progress and survives missing state (missing fields)")
+        function _()
+            list = m.items()
+            m.assertTrue(Abs(Library_progress(list[0]) - 0.05) < 0.0001)
+            m.assertEqual(Library_progress(list[4]), 0.0)
+            m.assertEqual(Library_progress(list[5]), 0.0)
+            m.assertEqual(Library_progress(invalid), 0.0)
+        end function
+
+        @it("marks finished movies only")
+        function _()
+            list = ParseJson(FormatJson([
+                { "_id": "tt1", "type": "movie", "state": { "flaggedWatched": 1 } },
+                { "_id": "tt2", "type": "movie", "state": { "timesWatched": 2 } },
+                { "_id": "tt3", "type": "movie", "state": { "timesWatched": 0, "flaggedWatched": 0 } },
+                { "_id": "tt4", "type": "series", "state": { "timesWatched": 3 } }
+            ]))
+            m.assertTrue(Library_isFinished(list[0]))
+            m.assertTrue(Library_isFinished(list[1]))
+            m.assertFalse(Library_isFinished(list[2]))
+            m.assertFalse(Library_isFinished(list[3]))
+        end function
+
+        @it("picks the hero from continue watching by type")
+        function _()
+            cont = Library_continueWatching(m.items())
+            m.assertEqual(Library_heroItem(cont, "")._id, "tt2")
+            m.assertEqual(Library_heroItem(cont, "movie")._id, "tt4")
+        end function
+
+        @it("returns invalid when nothing matches the type")
+        function _()
+            m.assertInvalid(Library_heroItem([], ""))
+            m.assertInvalid(Library_heroItem(Library_continueWatching(m.items()), "anime"))
+        end function
+
+        @describe("My list toggle")
+
+        @it("adds a never-watched title to the list without progress")
+        function _()
+            meta = { "id": "tt7", "name": "Hope", "type": "movie", "poster": "p", "background": "b", "logo": "l", "year": "2025" }
+            item = Library_setInList(invalid, meta, true, "2026-10-16T00:00:00Z")
+            m.assertFalse(item.removed)
+            m.assertFalse(item.temp)
+            m.assertEqual(item._mtime, "2026-10-16T00:00:00Z")
+            m.assertEqual(item.background, "b")
+            m.assertEqual(item.state.timeOffset, 0)
+            m.assertTrue(Library_inList(item))
+            m.assertTrue(m.hasKey(FormatJson(item), "_mtime"))
+        end function
+
+        @it("toggles on the newest copy between server and pending")
+        function _()
+            server = { "_id": "tt1", "_mtime": "2026-10-16T10:00:00Z" }
+            pending = { "_id": "tt1", "_mtime": "2026-10-16T09:00:00Z" }
+            m.assertEqual(Library_newest(server, pending)._mtime, "2026-10-16T10:00:00Z")
+            pending["_mtime"] = "2026-10-16T11:00:00Z"
+            m.assertEqual(Library_newest(server, pending)._mtime, "2026-10-16T11:00:00Z")
+            m.assertEqual(Library_newest(invalid, pending)._mtime, "2026-10-16T11:00:00Z")
+            m.assertEqual(Library_newest(server, invalid)._mtime, "2026-10-16T10:00:00Z")
+            m.assertInvalid(Library_newest(invalid, invalid))
+        end function
+
+        @it("removes from the list keeping progress")
+        function _()
+            list = m.items()
+            item = Library_setInList(list[0], { "id": "tt1" }, false, "2026-10-16T00:00:00Z")
+            m.assertTrue(item.removed)
+            m.assertEqual(item.state.timeOffset, 5000)
+            m.assertFalse(Library_inList(item))
+            ' The original item is not modified.
+            m.assertFalse(list[0].removed)
+        end function
+
+    end class
+end namespace

@@ -1,0 +1,31 @@
+namespace tests
+    @suite("Art")
+    class ArtTests extends rooibos.BaseTestSuite
+
+        @describe("Art")
+
+        @it("shrinks TMDB originals")
+        function _()
+            m.assertEqual(Art_resize("https://image.tmdb.org/t/p/original/a.jpg", 1280), "https://image.tmdb.org/t/p/w1280/a.jpg")
+        end function
+
+        @it("uses metahub medium instead of large")
+        function _()
+            m.assertEqual(Art_resize("https://images.metahub.space/background/large/tt1/img", 1280), "https://images.metahub.space/background/medium/tt1/img")
+        end function
+
+        @it("leaves other urls alone")
+        function _()
+            m.assertEqual(Art_resize("https://x.org/b.jpg", 500), "https://x.org/b.jpg")
+            m.assertEqual(Art_resize("", 500), "")
+        end function
+
+        @it("falls back to metahub by imdb id (missing fields)")
+        function _()
+            m.assertEqual(Art_background("tt0903747", ""), "https://images.metahub.space/background/medium/tt0903747/img")
+            m.assertEqual(Art_background("kitsu:1", ""), "")
+            m.assertEqual(Art_background("tt1", "https://image.tmdb.org/t/p/original/b.jpg"), "https://image.tmdb.org/t/p/w1280/b.jpg")
+        end function
+
+    end class
+end namespace

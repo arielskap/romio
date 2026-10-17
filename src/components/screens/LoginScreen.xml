@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Two steps (mail, then password) on the system keyboard; the buttons that move forward sit on the right. -->
+<component name="LoginScreen" extends="Screen">
+  <script type="text/brightscript" uri="LoginScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common/Ui.brs" />
+  <children>
+    <Rectangle width="1920" height="1080" color="0x0B0B0FFF" />
+    <Rectangle width="1920" height="6" color="0xF2613FFF" />
+    <Poster uri="pkg:/images/logo.png" translation="[120,64]" width="88" height="88" />
+    <Label text="Iniciá sesión con tu cuenta de Stremio" translation="[236,66]" font="font:LargeBoldSystemFont" />
+    <Label text="Tus addons, tu biblioteca y lo que venías viendo aparecen solos." translation="[236,124]" color="0xAAAAAAFF" font="font:SmallSystemFont" />
+    <Group translation="[120,200]">
+      <Rectangle id="dot1" width="48" height="6" color="0xF2613FFF" />
+      <Rectangle id="dot2" translation="[60,0]" width="48" height="6" color="0xFFFFFF33" />
+      <Label id="stepCount" translation="[128,-14]" color="0xAAAAAAFF" font="font:SmallSystemFont" />
+    </Group>
+    <Label id="step" translation="[120,236]" font="font:MediumBoldSystemFont" />
+    <DynamicKeyboard id="keyboard" translation="[120,290]" />
+    <Label id="message" translation="[120,770]" width="980" wrap="true" color="0xFF8A80FF" />
+    <ButtonRow id="actions" translation="[1200,760]" />
+  </children>
+</component>

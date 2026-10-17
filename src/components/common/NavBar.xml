@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Horizontal tabs. Left/right move between tabs, OK sets `chosen`; up/down are left to the screen. -->
+<component name="NavBar" extends="Group">
+  <interface>
+    <field id="items" type="array" onChange="build" />
+    <field id="selected" type="integer" value="0" onChange="onSelected" />
+    <field id="chosen" type="integer" alwaysNotify="true" />
+    <field id="showBrand" type="boolean" value="true" onChange="build" />
+  </interface>
+  <script type="text/brightscript" uri="NavBar.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common/Ui.brs" />
+  <children>
+    <Group id="brand">
+      <Poster uri="pkg:/images/logo.png" width="56" height="56" />
+      <Label id="appName" translation="[72,12]" font="font:MediumBoldSystemFont" />
+    </Group>
+    <Group id="tabs" />
+  </children>
+</component>

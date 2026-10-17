@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Grey placeholder shapes of a screen, pulsing while its data loads. -->
+<component name="Skeleton" extends="Group">
+  <interface>
+    <field id="layout" type="string" onChange="onLayout" />
+  </interface>
+  <script type="text/brightscript" uri="Skeleton.brs" />
+  <children>
+    <Group id="shapes" />
+    <Animation id="pulse" duration="1.2" repeat="true" easeFunction="inOutQuad">
+      <FloatFieldInterpolator key="[0, 0.5, 1]" keyValue="[1, 0.45, 1]" fieldToInterp="shapes.opacity" />
+    </Animation>
+  </children>
+</component>

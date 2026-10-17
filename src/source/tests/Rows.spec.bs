@@ -1,0 +1,45 @@
+namespace tests
+    @suite("Rows")
+    class RowsTests extends rooibos.BaseTestSuite
+
+        @describe("Rows_shiftFocus")
+
+        @it("moves down one row when the continue row appears")
+        function _()
+            m.assertEqual(Rows_shiftFocus([2, 3], false, true, "", []), [3, 3])
+        end function
+
+        @it("moves up one row when the continue row disappears")
+        function _()
+            m.assertEqual(Rows_shiftFocus([2, 3], true, false, "", []), [1, 3])
+        end function
+
+        @it("keeps the position when the rows didn't change")
+        function _()
+            m.assertEqual(Rows_shiftFocus([2, 3], true, true, "", ["a", "b"]), [2, 3])
+            m.assertEqual(Rows_shiftFocus([2, 3], false, false, "", []), [2, 3])
+        end function
+
+        @it("follows the focused title to the front of the continue row after watching it")
+        function _()
+            m.assertEqual(Rows_shiftFocus([0, 3], true, true, "d", ["d", "a", "b", "c"]), [0, 0])
+        end function
+
+        @it("stays on the focused card of the continue row when nothing was watched")
+        function _()
+            m.assertEqual(Rows_shiftFocus([0, 3], true, true, "d", ["a", "b", "c", "d"]), [0, 3])
+        end function
+
+        @it("keeps the column, within the row, when the focused title left the continue row")
+        function _()
+            m.assertEqual(Rows_shiftFocus([0, 3], true, true, "d", ["a", "b", "c", "e"]), [0, 3])
+            m.assertEqual(Rows_shiftFocus([0, 3], true, true, "d", ["a", "b"]), [0, 1])
+        end function
+
+        @it("lands on the first row when the focused continue row is gone")
+        function _()
+            m.assertEqual(Rows_shiftFocus([0, 4], true, false, "d", []), [0, 0])
+        end function
+
+    end class
+end namespace

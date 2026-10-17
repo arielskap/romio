@@ -1,0 +1,57 @@
+namespace tests
+    @suite("Sources")
+    class SourcesTests extends rooibos.BaseTestSuite
+
+        @describe("Sources")
+
+        @it("groups streams in quality tabs with counts")
+        function _()
+            tabs = Sources_tabs([{ quality: "1080p" }, { quality: "2160p" }, { quality: "1080p" }, { quality: "" }])
+            labels = []
+            for each t in tabs
+                labels.Push(t.label)
+            end for
+            m.assertEqual(labels.Join("|"), "1080p (2)|4K (1)|Otras (1)")
+            m.assertEqual(tabs[0].indices[0], 0)
+            m.assertEqual(tabs[0].indices[1], 2)
+        end function
+
+        @it("skips empty tabs")
+        function _()
+            m.assertArrayCount(Sources_tabs([]), 0)
+        end function
+
+        @it("builds chips in order")
+        function _()
+            s = { langs: ["Español", "Inglés", "Italiano", "Otro"], size: "2.4 GB", hdr: "HDR", cached: true, addon: "Alpha RD" }
+            m.assertEqual(Sources_chips(s).Join("|"), "Español + 3 idiomas|2.4 GB|HDR|Real-Debrid listo|Alpha")
+            m.assertEqual(Sources_chips({ langs: ["Español", "Inglés"], size: "", hdr: "", cached: false, addon: "Beta | Host | RD" }).Join("|"), "Español + Inglés|Beta")
+            m.assertEqual(Sources_chips({ addon: "Beta" }).Join("|"), "Beta")
+        end function
+
+        @it("uses the gray note as phrase and color")
+        function _()
+            m.assertEqual(Sources_phrase({ compat: "direct", note: "Copia de cine" }), "Copia de cine")
+            m.assertEqual(Sources_color({ compat: "direct", note: "Copia de cine" }), "0xAAAAAAFF")
+            m.assertEqual(Sources_phrase({ compat: "direct", note: "" }), "Directa — arranca al toque y adelantás sin cortes")
+            m.assertEqual(Sources_color({ compat: "direct", note: "" }), "0x46D369FF")
+            m.assertEqual(Sources_phrase({ compat: "convert" }), "Convertida — tarda en arrancar, adelantar puede trabarse")
+            m.assertEqual(Sources_color({ compat: "convert" }), "0xF5C518FF")
+        end function
+
+        @it("recommends the first source without a gray note")
+        function _()
+            m.assertEqual(Sources_recommended([{ note: "Falló recién" }, { note: "Falló recién" }, { note: "" }, { note: "" }]), 2)
+            m.assertEqual(Sources_recommended([{ quality: "1080p" }]), 0)
+            m.assertEqual(Sources_recommended([{ note: "Es 3D" }]), 0)
+        end function
+
+        @it("names qualities for the screen")
+        function _()
+            m.assertEqual(Sources_qualityText({ quality: "4320p" }), "4K")
+            m.assertEqual(Sources_qualityText({ quality: "720p" }), "720p")
+            m.assertEqual(Sources_qualityText({ quality: "" }), "?")
+        end function
+
+    end class
+end namespace

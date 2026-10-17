@@ -1,0 +1,80 @@
+namespace tests
+    @suite("Tracks")
+    class TracksTests extends rooibos.BaseTestSuite
+
+        function audio() as object
+            return [{ Language: "spa", Name: "", Track: "a1" }, { Language: "eng", Name: "English 5.1", Track: "a2" }, { Language: "", Name: "", Track: "a3" }]
+        end function
+
+        @describe("Tracks")
+
+        @it("names languages from ISO codes")
+        function _()
+            m.assertEqual(Tracks_languageName("spa"), "Español")
+            m.assertEqual(Tracks_languageName("en"), "Inglés")
+            m.assertEqual(Tracks_languageName("xyz"), "XYZ")
+            m.assertEqual(Tracks_languageName(""), "")
+        end function
+
+        @it("labels audio tracks, unknown ones by number")
+        function _()
+            items = Tracks_audioItems(m.audio())
+            m.assertEqual(items[0].label, "Español")
+            m.assertEqual(items[1].label, "Inglés · English 5.1")
+            m.assertEqual(items[2].label, "Pista 3")
+            m.assertEqual(items[2].track, "a3")
+            m.assertArrayCount(Tracks_audioItems(invalid), 0)
+        end function
+
+        @it("hides internal track names and names more languages")
+        function _()
+            items = Tracks_audioItems([{ Language: "eng", Name: "#uniq:KIN(1)", Track: "a1" }, { Language: "hin", Name: "#uniq:KIN(2)", Track: "a2" }])
+            m.assertEqual(items[0].label, "Inglés")
+            m.assertEqual(items[1].label, "Hindi")
+            m.assertEqual(Tracks_languageName("tam"), "Tamil")
+        end function
+
+        @it("picks the audio track by language")
+        function _()
+            m.assertEqual(Tracks_pickAudio(m.audio(), "", "eng"), "a2")
+            m.assertEqual(Tracks_pickAudio(m.audio(), "", "fra"), "")
+            m.assertEqual(Tracks_pickAudio(invalid, "", "eng"), "")
+        end function
+
+        @it("keeps the exact track chosen when the reloaded file still has it")
+        function _()
+            m.assertEqual(Tracks_pickAudio(m.audio(), "a3", ""), "a3")
+            m.assertEqual(Tracks_pickAudio(m.audio(), "a2", "spa"), "a2")
+        end function
+
+        @it("falls back to the language when the chosen track is gone")
+        function _()
+            m.assertEqual(Tracks_pickAudio(m.audio(), "a9", "spa"), "a1")
+        end function
+
+        @it("builds the caption style and cycles its values")
+        function _()
+            style = Tracks_captionStyle("large", "semi")
+            m.assertEqual(style["Text/Size"], "Large")
+            m.assertEqual(style["Background/Opacity"], "50%")
+            m.assertEqual(style["Background/Color"], "Black")
+            m.assertEqual(Tracks_captionStyle("", "")["Text/Size"], "Default")
+            m.assertEqual(Tracks_nextSize("large"), "small")
+            m.assertEqual(Tracks_nextSize(""), "medium")
+            m.assertEqual(Tracks_nextBackground(""), "semi")
+            m.assertEqual(Tracks_nextBackground("solid"), "none")
+            m.assertEqual(Tracks_sizeLabel("medium"), "Tamaño: Mediano")
+            m.assertEqual(Tracks_backgroundLabel("none"), "Fondo: Sin fondo")
+            m.assertEqual(Tracks_backgroundLabel(""), "Fondo: Normal")
+        end function
+
+        @it("picks the remembered subtitle language")
+        function _()
+            subs = [{ lang: "eng", url: "u1" }, { lang: "spa", url: "u2" }, { lang: "spa", url: "https://x.strem.io/s" }]
+            m.assertEqual(Subs_pickLang(subs, "Español"), 2)
+            m.assertEqual(Subs_pickLang(subs, "Inglés"), 0)
+            m.assertEqual(Subs_pickLang(subs, "Francés"), -1)
+        end function
+
+    end class
+end namespace

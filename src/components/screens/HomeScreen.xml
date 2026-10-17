@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="HomeScreen" extends="Screen">
+  <script type="text/brightscript" uri="HomeScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common/Ui.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common/UiLibrary.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Format.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Meta.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Library.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Addons.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Art.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Rows.brs" />
+  <children>
+    <Rectangle width="1920" height="1080" color="0x0B0B0FFF" />
+    <Hero id="hero" visible="false" />
+    <Skeleton id="skeleton" layout="hero" />
+    <RowList
+      id="rows"
+      translation="[80,655]"
+      itemComponentName="PosterItem"
+      itemSize="[1840,460]"
+      numRows="2"
+      rowItemSize="[[220,400]]"
+      rowHeights="[460]"
+      rowItemSpacing="[[24,0]]"
+      rowLabelOffset="[[0,12]]"
+      showRowLabel="[true]"
+      focusBitmapUri="pkg:/images/focus.9.png"
+      rowFocusAnimationStyle="floatingFocus" />
+    <MyListView id="myList" translation="[80,150]" visible="false" />
+    <NavBar id="nav" translation="[80,40]" />
+    <Label id="message" translation="[80,720]" width="1760" wrap="true" horizAlign="center" />
+  </children>
+</component>

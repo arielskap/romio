@@ -1,0 +1,72 @@
+namespace tests
+    @suite("Flows")
+    class FlowsTests extends rooibos.BaseTestSuite
+
+        @describe("Flows")
+
+        @it("rejects unknown operations")
+        function _()
+            r = Flows_run("nope", {})
+            m.assertFalse(r.ok)
+            m.assertEqual(r.error, "Operación desconocida: nope")
+        end function
+
+        @it("asks for a Real-Debrid key before resolving")
+        function _()
+            r = Flows_run("play", { rdKey: "", addons: [], type: "movie", videoId: "tt1", stream: { url: "https://x", filename: "a.mkv" } })
+            m.assertFalse(r.ok)
+            m.assertTrue(r.keyProblem)
+        end function
+
+        @it("Http_fail returns a failed response")
+        function _()
+            r = Http_fail("timeout")
+            m.assertFalse(r.ok)
+            m.assertEqual(r.code, 0)
+            m.assertEqual(r.error, "timeout")
+        end function
+
+        @it("Http_parseBody only parses JSON-looking bodies")
+        function _()
+            m.assertInvalid(Http_parseBody("<!DOCTYPE html><html></html>"))
+            m.assertInvalid(Http_parseBody(""))
+            m.assertEqual(Http_parseBody(" {""a"":1}").a, 1)
+            m.assertArrayCount(Http_parseBody("[1,2]"), 2)
+        end function
+
+        @describe("Flows_boot without a session")
+
+        ' The test build shares the app's registry: keep the device's real session and email.
+        function saveSession() as object
+            return { authKey: Storage_get("authKey"), lastEmail: Storage_get("lastEmail") }
+        end function
+
+        sub restoreSession(saved as object)
+            for each key in ["authKey", "lastEmail"]
+                if saved[key] = "" then Storage_delete(key) else Storage_set(key, saved[key])
+            end for
+        end sub
+
+        @it("returns the last email so the login can prefill it")
+        function _()
+            saved = m.saveSession()
+            Storage_delete("authKey")
+            Storage_set("lastEmail", "a@b.com")
+            r = Flows_boot()
+            m.restoreSession(saved)
+            m.assertTrue(r.authError)
+            m.assertEqual(r.lastEmail, "a@b.com")
+        end function
+
+        @it("returns an empty email when none was saved")
+        function _()
+            saved = m.saveSession()
+            Storage_delete("authKey")
+            Storage_delete("lastEmail")
+            email = Flows_boot().lastEmail
+            m.restoreSession(saved)
+            m.assertEqual(email, "")
+        end function
+
+    end class
+end namespace

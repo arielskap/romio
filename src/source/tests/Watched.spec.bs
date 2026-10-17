@@ -1,0 +1,79 @@
+namespace tests
+    @suite("Watched")
+    class WatchedTests extends rooibos.BaseTestSuite
+
+        ' Like the real series: 2 specials, then 3 seasons of 10 episodes (32 videos).
+        function terrorIds() as object
+            ids = ["tt2708480:0:1", "tt2708480:0:2"]
+            for s = 1 to 3
+                for e = 1 to 10
+                    ids.Push("tt2708480:" + s.ToStr() + ":" + e.ToStr())
+                end for
+            end for
+            return ids
+        end function
+
+        @describe("Watched")
+
+        @it("inflates a fixed huffman zlib stream")
+        function _()
+            data = CreateObject("roByteArray")
+            data.FromBase64String("eJxjYGD4AwABAAD9")
+            out = Watched_inflate(data)
+            m.assertEqual(out.ToHexString(), "000000FC")
+        end function
+
+        @it("inflates a stream with a back reference")
+        function _()
+            data = CreateObject("roByteArray")
+            data.FromBase64String("eJxjZkAHAABIAAQ=")
+            out = Watched_inflate(data)
+            m.assertEqual(out.Count(), 18)
+            m.assertEqual(out[0], 3)
+            m.assertEqual(out[17], 0)
+        end function
+
+        @it("maps bits to episodes in season order")
+        function _()
+            seen = Watched_videoIds("tt2708480:3:6:32:eJxjYGD4AwABAAD9", m.terrorIds())
+            m.assertEqual(seen.Count(), 6)
+            m.assertTrue(seen["tt2708480:3:1"])
+            m.assertTrue(seen["tt2708480:3:6"])
+            m.assertAANotHasKey(seen, "tt2708480:3:7")
+        end function
+
+        @it("shifts bits when episodes were added after the anchor")
+        function _()
+            ids = m.terrorIds()
+            ids.Unshift("tt2708480:0:0")
+            seen = Watched_videoIds("tt2708480:3:6:32:eJxjYGD4AwABAAD9", ids)
+            m.assertTrue(seen["tt2708480:3:1"])
+            m.assertTrue(seen["tt2708480:3:6"])
+            m.assertAANotHasKey(seen, "tt2708480:2:10")
+        end function
+
+        @it("returns no episodes for malformed watched (missing fields)")
+        function _()
+            m.assertEqual(Watched_videoIds("", m.terrorIds()).Count(), 0)
+            m.assertEqual(Watched_videoIds("garbage", m.terrorIds()).Count(), 0)
+            m.assertEqual(Watched_videoIds("tt1:1:1:5:!!!", m.terrorIds()).Count(), 0)
+        end function
+
+        @it("does not loop over a length larger than the bitfield")
+        function _()
+            timer = CreateObject("roTimespan")
+            seen = Watched_videoIds("tt2708480:3:6:3000000:eJxjYGD4AwABAAD9", m.terrorIds())
+            m.assertTrue(timer.TotalMilliseconds() < 500)
+            m.assertEqual(seen.Count(), 0)
+        end function
+
+        @it("gives up on dynamic huffman blocks")
+        function _()
+            data = CreateObject("roByteArray")
+            ' zlib header + first byte with BFINAL=1, BTYPE=2.
+            data.FromHexString("789C05")
+            m.assertInvalid(Watched_inflate(data))
+        end function
+
+    end class
+end namespace

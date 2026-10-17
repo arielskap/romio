@@ -1,0 +1,65 @@
+namespace tests
+    @suite("RealDebrid")
+    class RealDebridTests extends rooibos.BaseTestSuite
+
+        @describe("RealDebrid")
+
+        @it("reads the key from the Real-Debrid addon")
+        function _()
+            addons = [{ name: "Cinemeta", base: "https://v3-cinemeta.strem.io" }, { name: "Alpha RD", base: "https://addon-a.example.com/sort=qualitysize%7Cdebridoptions=nodownloadlinks%7Crealdebrid=KEY123" }]
+            m.assertEqual(RD_keyFromAddons(addons), "KEY123")
+            m.assertEqual(RD_keyFromAddons([{ name: "x", base: "https://x" }]), "")
+        end function
+
+        @it("builds authorized requests")
+        function _()
+            req = RD_transcodeRequest("K", "ODHOOUZV27UGY")
+            m.assertEqual(req.url, "https://api.real-debrid.com/rest/1.0/streaming/transcode/ODHOOUZV27UGY")
+            m.assertEqual(req.headers.Authorization, "Bearer K")
+            m.assertEqual(RD_downloadsRequest("K").url, "https://api.real-debrid.com/rest/1.0/downloads?limit=50")
+        end function
+
+        @it("finds the newest download with the same filename")
+        function _()
+            resp = { ok: true, code: 200, json: ParseJson("[{""id"":""NEW"",""filename"":""a.mkv""},{""id"":""OLD"",""filename"":""a.mkv""},{""id"":""B"",""filename"":""b.mkv""},{""filename"":""no-id.mkv""}]") }
+            m.assertEqual(RD_findDownload(resp, "a.mkv").id, "NEW")
+            m.assertInvalid(RD_findDownload(resp, "c.mkv"))
+            m.assertInvalid(RD_findDownload(resp, "no-id.mkv"))
+            m.assertInvalid(RD_findDownload({ ok: false, code: 0, json: invalid }, "a.mkv"))
+        end function
+
+        @it("returns the download url with the id")
+        function _()
+            resp = { ok: true, code: 200, json: ParseJson("[{""id"":""A"",""filename"":""a.mkv"",""download"":""https://d/a.mkv""}]") }
+            d = RD_findDownload(resp, "a.mkv")
+            m.assertEqual(d.id, "A")
+            m.assertEqual(d.download, "https://d/a.mkv")
+            m.assertInvalid(RD_findDownload(resp, "b.mkv"))
+        end function
+
+        @it("reads the apple.high transcode url")
+        function _()
+            r = RD_parseTranscode({ ok: true, code: 200, json: { apple: { high: "https://s/1080p.m3u8", original: "o" } } })
+            m.assertTrue(r.ok)
+            m.assertEqual(r.url, "https://s/1080p.m3u8")
+        end function
+
+        @it("explains key and account errors")
+        function _()
+            bad = RD_parseTranscode({ ok: false, code: 401, json: { error: "bad_token", error_code: 8 }, error: "HTTP 401" })
+            m.assertFalse(bad.ok)
+            m.assertTrue(bad.keyProblem)
+            m.assertEqual(bad.error, "La clave de Real-Debrid no es válida.")
+            m.assertEqual(RD_error({ ok: false, code: 403, json: invalid, error: "" }), "Tu cuenta de Real-Debrid venció o no tiene premium.")
+            m.assertEqual(RD_error({ ok: false, code: -28, json: invalid, error: "timeout" }), "No se pudo conectar con Real-Debrid (timeout).")
+        end function
+
+        @it("fails cleanly when apple.high is missing (missing fields)")
+        function _()
+            r = RD_parseTranscode({ ok: true, code: 200, json: { dash: {} } })
+            m.assertFalse(r.ok)
+            m.assertEqual(r.error, "Real-Debrid no ofreció una versión convertida de este archivo.")
+        end function
+
+    end class
+end namespace

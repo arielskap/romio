@@ -1,0 +1,101 @@
+namespace tests
+    @suite("Stremio")
+    class StremioTests extends rooibos.BaseTestSuite
+
+        function resp(json as dynamic, ok = true as boolean, code = 200 as integer) as object
+            return { ok: ok, code: code, body: "", json: json, error: "" }
+        end function
+
+        @describe("requests")
+
+        @it("builds the login request")
+        function _()
+            req = Stremio_loginRequest("a@b.com", "pw")
+            m.assertEqual(req.method, "POST")
+            m.assertEqual(req.url, "https://api.strem.io/api/login")
+            body = ParseJson(req.body)
+            m.assertEqual(body.type, "Login")
+            m.assertEqual(body.email, "a@b.com")
+            m.assertEqual(body.password, "pw")
+        end function
+
+        @it("builds the datastorePut request with camelCase keys")
+        function _()
+            req = Stremio_putLibraryRequest("key", [{ "_id": "tt1", "state": { "timeOffset": 5 } }])
+            m.assertEqual(req.url, "https://api.strem.io/api/datastorePut")
+            m.assertTrue(req.body.Instr(Chr(34) + "timeOffset" + Chr(34)) >= 0)
+            m.assertTrue(req.body.Instr(Chr(34) + "collection" + Chr(34) + ":" + Chr(34) + "libraryItem" + Chr(34)) >= 0)
+            m.assertTrue(req.body.Instr(Chr(34) + "authKey" + Chr(34)) >= 0)
+        end function
+
+        @it("sends authKey in camelCase for addons and library")
+        function _()
+            m.assertTrue(Stremio_addonsRequest("k").body.Instr(Chr(34) + "authKey" + Chr(34)) >= 0)
+            m.assertTrue(Stremio_libraryRequest("k").body.Instr(Chr(34) + "authKey" + Chr(34)) >= 0)
+        end function
+
+        @it("asks for a single library item by id")
+        function _()
+            body = ParseJson(Stremio_libraryItemRequest("k", "tt7").body)
+            m.assertEqual(body["authKey"], "k")
+            m.assertEqual(body.collection, "libraryItem")
+            m.assertEqual(body.ids[0], "tt7")
+            m.assertFalse(body.all)
+        end function
+
+        @describe("Stremio_parse")
+
+        @it("returns result on success")
+        function _()
+            r = Stremio_parseLogin(m.resp({ result: { authKey: "abc" } }))
+            m.assertTrue(r.ok)
+            m.assertEqual(r.authKey, "abc")
+        end function
+
+        @it("flags an expired session")
+        function _()
+            r = Stremio_parseAddons(m.resp({ error: { code: 1, message: "Session does not exist" } }))
+            m.assertFalse(r.ok)
+            m.assertTrue(r.authError)
+            m.assertEqual(r.error, "Tu sesión de Stremio venció. Volvé a iniciar sesión.")
+        end function
+
+        @it("flags a wrong password")
+        function _()
+            r = Stremio_parseLogin(m.resp({ error: { code: 3, message: "Wrong passphrase", wrongPass: true } }))
+            m.assertFalse(r.ok)
+            m.assertTrue(r.wrongPassword)
+            m.assertEqual(r.error, "Mail o contraseña incorrectos.")
+        end function
+
+        @it("survives an error without code or message (missing fields)")
+        function _()
+            r = Stremio_parseLibrary(m.resp({ error: {} }))
+            m.assertFalse(r.ok)
+            m.assertFalse(r.authError)
+            m.assertEqual(r.error, "Stremio respondió con un error.")
+        end function
+
+        @it("reports connection failures")
+        function _()
+            r = Stremio_parseLibrary({ ok: false, code: -28, body: "", json: invalid, error: "timeout" })
+            m.assertFalse(r.ok)
+            m.assertEqual(r.error, "No se pudo conectar con Stremio (timeout).")
+        end function
+
+        @it("returns library items")
+        function _()
+            r = Stremio_parseLibrary(m.resp({ result: [{ _id: "tt1" }, { _id: "tt2" }] }))
+            m.assertTrue(r.ok)
+            m.assertArrayCount(r.items, 2)
+        end function
+
+        @it("returns addons")
+        function _()
+            r = Stremio_parseAddons(m.resp({ result: { addons: [{ transportUrl: "https://x/manifest.json", manifest: {} }] } }))
+            m.assertTrue(r.ok)
+            m.assertArrayCount(r.addons, 1)
+        end function
+
+    end class
+end namespace

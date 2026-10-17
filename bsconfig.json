@@ -1,0 +1,13 @@
+{
+  "rootDir": "src",
+  "files": [
+    "manifest",
+    "source/**/*",
+    "!source/tests/**/*",
+    "components/**/*",
+    "images/**/*"
+  ],
+  "stagingDir": "out/staging",
+  "outFile": "out/roku-stremio.zip",
+  "retainStagingDir": true
+}

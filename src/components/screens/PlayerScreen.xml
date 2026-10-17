@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="PlayerScreen" extends="Screen">
+  <script type="text/brightscript" uri="PlayerScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common/Ui.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Format.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Meta.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Library.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Addons.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Subtitles.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Playback.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Sources.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Tracks.brs" />
+  <children>
+    <Video id="video" width="1920" height="1080" enableUI="false" />
+    <PlayerControls id="controls" visible="false" />
+    <NextCard id="nextCard" translation="[1180,700]" visible="false" />
+    <Group id="overlay">
+      <Rectangle width="1920" height="1080" color="0x000000E0" />
+      <Label id="status" translation="[160,380]" width="1600" horizAlign="center" wrap="true" font="font:LargeBoldSystemFont" />
+      <Label id="detail" translation="[160,470]" width="1600" horizAlign="center" wrap="true" />
+      <LabelList id="choices" translation="[660,600]" itemSize="[600,60]" vertFocusAnimationStyle="floatingFocus" visible="false" />
+    </Group>
+    <Group id="menu" visible="false">
+      <Rectangle translation="[1020,0]" width="900" height="1080" color="0x000000E6" />
+      <Label id="menuTitle" translation="[1080,80]" font="font:LargeBoldSystemFont" />
+      <LabelList id="subsList" translation="[1080,170]" itemSize="[780,56]" numRows="14" vertFocusAnimationStyle="floatingFocus" />
+    </Group>
+    <Group id="syncBox" visible="false" focusable="true">
+      <Rectangle translation="[0,800]" width="1920" height="180" color="0x000000E0" />
+      <Label id="syncValue" translation="[80,820]" width="1760" horizAlign="center" font="font:LargeBoldSystemFont" />
+      <Label text="Izquierda o derecha: medio segundo · OK: aplicar · Atrás: cancelar" translation="[80,900]" width="1760" horizAlign="center" />
+    </Group>
+    <Group id="toastBox" visible="false">
+      <Rectangle translation="[0,820]" width="1920" height="120" color="0x000000B3" />
+      <Label id="toast" translation="[80,845]" width="1760" wrap="true" />
+    </Group>
+    <Timer id="saveTimer" duration="30" repeat="true" />
+    <Timer id="convertTimer" duration="90" repeat="false" />
+    <Timer id="watchTimer" duration="5" repeat="true" />
+    <Timer id="toastTimer" duration="6" repeat="false" />
+    <Timer id="controlsTimer" duration="3" repeat="false" />
+    <Timer id="nextTimer" duration="1" repeat="true" />
+  </children>
+</component>

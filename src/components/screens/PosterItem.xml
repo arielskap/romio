@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vertical poster (220x330) or, with content field `landscape`, a 330x186 card with a progress bar. -->
+<component name="PosterItem" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="onContent" />
+  </interface>
+  <script type="text/brightscript" uri="PosterItem.brs" />
+  <children>
+    <Rectangle id="bg" color="0x1C1C22FF" />
+    <Poster id="poster" loadDisplayMode="scaleToZoom" />
+    <Rectangle id="barBg" height="6" color="0xFFFFFF4D" visible="false" />
+    <Rectangle id="barFill" height="6" color="0xF2613FFF" visible="false" />
+    <Poster id="check" uri="pkg:/images/icon_check.png" width="40" height="40" visible="false" />
+    <Label id="title" font="font:SmallSystemFont" />
+    <Label id="sub" font="font:SmallestSystemFont" color="0xAAAAAAFF" />
+  </children>
+</component>

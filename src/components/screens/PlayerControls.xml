@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Player controls: title and facts on top, progress bar and buttons at the bottom. barOnly shows just the bar while seeking. -->
+<component name="PlayerControls" extends="Group">
+  <interface>
+    <field id="info" type="assocarray" onChange="onInfo" />
+    <field id="positionSec" type="float" onChange="renderBar" alwaysNotify="true" />
+    <!-- Set before positionSec, which redraws the bar. -->
+    <field id="durationSec" type="float" />
+    <field id="buttons" type="array" onChange="onButtons" />
+    <!-- alwaysNotify: every pause lands on Seguir again, even when it was the last value set. -->
+    <field id="focusIndex" type="integer" onChange="onFocusIndex" alwaysNotify="true" />
+    <field id="action" type="string" alwaysNotify="true" />
+    <field id="barOnly" type="boolean" value="false" onChange="onBarOnly" />
+  </interface>
+  <script type="text/brightscript" uri="PlayerControls.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Format.brs" />
+  <children>
+    <Poster uri="pkg:/images/fade_bottom.png" width="1920" height="1080" />
+    <Group id="top">
+      <Poster uri="pkg:/images/fade_bottom.png" width="1920" height="540" rotation="3.14159265" scaleRotateCenter="[960,270]" />
+      <Label id="title" translation="[80,60]" width="1160" font="font:LargeBoldSystemFont" />
+      <Label id="subtitle" translation="[80,130]" width="1160" color="0xCFCFCFFF" />
+      <Label id="quality" translation="[1240,66]" width="600" horizAlign="right" font="font:SmallBoldSystemFont" />
+      <Label id="endsAt" translation="[1240,110]" width="600" horizAlign="right" color="0xCFCFCFFF" font="font:SmallSystemFont" />
+    </Group>
+    <Rectangle translation="[80,850]" width="1760" height="8" color="0xFFFFFF4D" />
+    <Rectangle id="fill" translation="[80,850]" height="8" color="0xF2613FFF" />
+    <Label id="elapsed" translation="[80,872]" font="font:SmallSystemFont" />
+    <Label id="remaining" translation="[1240,872]" width="600" horizAlign="right" font="font:SmallSystemFont" />
+    <ButtonRow id="row" translation="[80,950]" primaryIndex="1" />
+  </children>
+</component>

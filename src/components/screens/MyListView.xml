@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Mi lista": the Stremio library as a poster grid, filtered by type. -->
+<component name="MyListView" extends="Group">
+  <interface>
+    <field id="library" type="array" onChange="fill" />
+    <field id="libraryLoaded" type="boolean" onChange="fill" />
+    <field id="selectedItem" type="assocarray" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="MyListView.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common/Ui.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common/UiLibrary.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Format.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Meta.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Library.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Art.brs" />
+  <children>
+    <NavBar id="filter" showBrand="false" />
+    <MarkupGrid
+      id="grid"
+      translation="[0,90]"
+      itemComponentName="PosterItem"
+      itemSize="[220,400]"
+      numColumns="7"
+      numRows="2"
+      itemSpacing="[24,24]"
+      focusBitmapUri="pkg:/images/focus.9.png"
+      vertFocusAnimationStyle="floatingFocus" />
+    <Label id="empty" translation="[0,200]" width="1760" wrap="true" font="font:MediumSystemFont" color="0xAAAAAAFF" visible="false" />
+  </children>
+</component>

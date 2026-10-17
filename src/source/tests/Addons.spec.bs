@@ -1,0 +1,519 @@
+namespace tests
+    @suite("Addons")
+    class AddonsTests extends rooibos.BaseTestSuite
+
+        ' Server-shaped fixtures use quoted keys so camelCase survives like real ParseJson output.
+        function rawAddons() as object
+            return ParseJson(FormatJson([
+                {
+                    "transportUrl": "https://v3-cinemeta.strem.io/manifest.json",
+                    "manifest": {
+                        "name": "Cinemeta", "types": ["movie", "series"], "idPrefixes": ["tt"],
+                        "resources": ["catalog", "meta"],
+                        "catalogs": [
+                            { "type": "movie", "id": "top", "name": "Popular", "extra": [{ "name": "genre" }, { "name": "search" }, { "name": "skip" }] },
+                            { "type": "movie", "id": "year", "name": "New", "extra": [{ "name": "genre", "isRequired": true }] },
+                            { "type": "series", "id": "last-videos", "name": "Last videos", "extra": [{ "name": "lastVideosIds", "isRequired": true }] }
+                        ]
+                    }
+                },
+                {
+                    "transportUrl": "https://addon-a.example.com/sort=qualitysize%7Crealdebrid=ABC123/manifest.json",
+                    "manifest": {
+                        "name": "Alpha RD", "types": ["movie", "series"],
+                        "resources": [{ "name": "stream", "types": ["movie", "series"], "idPrefixes": ["tt", "kitsu"] }],
+                        "catalogs": [{ "type": "other", "id": "addon-a-realdebrid", "name": "RealDebrid" }]
+                    }
+                },
+                {
+                    "transportUrl": "https://aio.example/stremio/x/manifest.json",
+                    "manifest": {
+                        "name": "AIOMetadata", "types": ["movie", "series"], "idPrefixes": ["tmdb:", "tt"],
+                        "resources": ["catalog", "meta"],
+                        "catalogs": [{ "type": "series", "id": "search.series", "name": "Series Search", "extra": [{ "name": "search", "isRequired": true }] }]
+                    }
+                },
+                {
+                    "transportUrl": "http://127.0.0.1:11470/local-addon/manifest.json",
+                    "manifest": { "name": "Local Files", "resources": ["stream"], "types": ["movie"] }
+                },
+                {
+                    "transportUrl": "https://subs.example/manifest.json",
+                    "manifest": { "name": "SubSense", "types": ["movie", "series"], "idPrefixes": ["tt"], "resources": ["subtitles"] }
+                }
+            ]))
+        end function
+
+        @describe("Addons_slim")
+
+        @it("drops local addons and strips manifest.json")
+        function _()
+            addons = Addons_slim(m.rawAddons())
+            m.assertArrayCount(addons, 4)
+            m.assertEqual(addons[0].base, "https://v3-cinemeta.strem.io")
+        end function
+
+        @it("inherits types and idPrefixes for string resources")
+        function _()
+            addons = Addons_slim(m.rawAddons())
+            m.assertEqual(addons[0].resources[0].name, "catalog")
+            m.assertArrayCount(addons[0].resources[0].idPrefixes, 1)
+        end function
+
+        @it("survives a manifest without resources or catalogs (missing fields)")
+        function _()
+            addons = Addons_slim(ParseJson("[{""transportUrl"":""https://x/manifest.json"",""manifest"":{""name"":""Bare""}},{""transportUrl"":null}]"))
+            m.assertArrayCount(addons, 1)
+            m.assertArrayCount(addons[0].resources, 0)
+        end function
+
+        @describe("routing")
+
+        @it("picks stream addons by id prefix")
+        function _()
+            addons = Addons_slim(m.rawAddons())
+            targets = Addons_streamTargets(addons, "series", "tt2708480:3:4")
+            m.assertArrayCount(targets, 1)
+            m.assertEqual(targets[0].name, "Alpha RD")
+            m.assertEqual(targets[0].url, "https://addon-a.example.com/sort=qualitysize%7Crealdebrid=ABC123/stream/series/tt2708480%3A3%3A4.json")
+        end function
+
+        @it("uses the first non-Cinemeta addon that supports meta")
+        function _()
+            addons = Addons_slim(m.rawAddons())
+            m.assertEqual(Addons_metaUrls(addons, "series", "tt2708480")[0], "https://aio.example/stremio/x/meta/series/tt2708480.json")
+            m.assertEqual(Addons_metaUrls(addons, "series", "tmdb:1")[0], "https://aio.example/stremio/x/meta/series/tmdb%3A1.json")
+            m.assertArrayCount(Addons_metaUrls(addons, "channel", "yt_id:1"), 0)
+        end function
+
+        @it("lists home catalogs without required extras")
+        function _()
+            cats = Addons_homeCatalogs(Addons_slim(m.rawAddons()))
+            m.assertArrayCount(cats, 1)
+            m.assertEqual(cats[0].id, "top")
+            m.assertEqual(cats[0].title, "Popular · Películas")
+        end function
+
+        @it("lists search catalogs")
+        function _()
+            cats = Addons_searchCatalogs(Addons_slim(m.rawAddons()))
+            m.assertArrayCount(cats, 2)
+        end function
+
+        @it("builds catalog urls with extras")
+        function _()
+            ' Cinemeta's search catalog comes after AIOMetadata's.
+            cat = Addons_searchCatalogs(Addons_slim(m.rawAddons()))[1]
+            m.assertEqual(Addons_catalogUrl(cat, { search: "the terror" }), "https://v3-cinemeta.strem.io/catalog/movie/top/search=the%20terror.json")
+            m.assertEqual(Addons_catalogUrl(cat, {}), "https://v3-cinemeta.strem.io/catalog/movie/top.json")
+        end function
+
+        @it("builds subtitle urls with the filename")
+        function _()
+            t = Addons_subtitleTargets(Addons_slim(m.rawAddons()), "movie", "tt1", "A B.mkv")
+            m.assertArrayCount(t, 1)
+            m.assertEqual(t[0].url, "https://subs.example/subtitles/movie/tt1/filename=A%20B.mkv.json")
+        end function
+
+        @it("slim addons survive a JSON round trip (thread copies)")
+        function _()
+            addons = ParseJson(FormatJson(Addons_slim(m.rawAddons())))
+            m.assertArrayCount(Addons_streamTargets(addons, "series", "tt1:1:1"), 1)
+            m.assertEqual(Addons_metaUrls(addons, "series", "tmdb:1")[0], "https://aio.example/stremio/x/meta/series/tmdb%3A1.json")
+        end function
+
+        @describe("parsers")
+
+        @it("keeps only the needed meta fields, max 50")
+        function _()
+            metas = []
+            for i = 1 to 60
+                metas.Push({ "id": "tt" + i.ToStr(), "type": "movie", "name": "M" + i.ToStr(), "poster": "p", "videos": [{ "id": "x" }], "description": "long", "releaseInfo": "2020" })
+            end for
+            metas.Push({ "name": "no id" })
+            out = Addons_parseMetas(ParseJson(FormatJson({ "metas": metas })))
+            m.assertArrayCount(out, 50)
+            m.assertAANotHasKey(out[0], "videos")
+            m.assertEqual(out[0].poster, "p")
+            m.assertEqual(out[0].releaseInfo, "2020")
+        end function
+
+        @it("returns an empty list for a body without metas (missing fields)")
+        function _()
+            m.assertArrayCount(Addons_parseMetas({}), 0)
+            m.assertArrayCount(Addons_parseMetas(invalid), 0)
+        end function
+
+        @it("keeps hero fields from catalog metas")
+        function _()
+            out = Addons_parseMetas(ParseJson(FormatJson({ "metas": [
+                { "id": "tt1", "type": "movie", "name": "A", "description": "D", "background": "B", "logo": "L", "imdbRating": "8.1", "year": "2021", "runtime": "148 min", "genres": ["Acción", "Aventura", "Ciencia ficción", "Drama"] },
+                { "id": "tt2", "type": "movie", "name": "B", "genre": ["Drama"] }
+            ] })))
+            m.assertEqual(out[0].description, "D")
+            m.assertEqual(out[0].logo, "L")
+            m.assertEqual(out[0].imdbRating, "8.1")
+            m.assertEqual(out[0].genres, "Acción, Aventura, Ciencia ficción")
+            m.assertEqual(out[1].genres, "Drama")
+            m.assertEqual(out[1].logo, "")
+        end function
+
+        @it("merges search results without duplicates")
+        function _()
+            res = [
+                { ok: true, json: { metas: [{ id: "tt1", type: "movie", name: "A" }] } },
+                { ok: false, json: invalid },
+                { ok: true, json: { metas: [{ id: "tt1", type: "movie", name: "A" }, { id: "tt2", type: "movie", name: "B" }] } }
+            ]
+            m.assertArrayCount(Addons_mergeMetas(res), 2)
+        end function
+
+        @it("puts Cinemeta last among meta addons")
+        function _()
+            addons = [
+                { "name": "Cinemeta", "base": "https://v3-cinemeta.strem.io", "resources": [{ "name": "meta", "types": ["movie", "series"], "idPrefixes": ["tt"] }], "catalogs": [] },
+                { "name": "AIOMetadata", "base": "https://aio.example", "resources": [{ "name": "meta", "types": ["movie", "series"], "idPrefixes": ["tt", "tmdb:"] }], "catalogs": [] },
+                { "name": "Kitsu", "base": "https://kitsu.example", "resources": [{ "name": "meta", "types": ["anime"], "idPrefixes": ["kitsu:"] }], "catalogs": [] }
+            ]
+            urls = Addons_metaUrls(addons, "movie", "tt1")
+            m.assertArrayCount(urls, 2)
+            m.assertEqual(urls[0], "https://aio.example/meta/movie/tt1.json")
+            m.assertEqual(urls[1], "https://v3-cinemeta.strem.io/meta/movie/tt1.json")
+            m.assertArrayCount(Addons_metaUrls(addons, "movie", "xx"), 0)
+        end function
+
+        @it("searches Cinemeta last")
+        function _()
+            addons = [
+                { "name": "Cinemeta", "base": "https://v3-cinemeta.strem.io", "resources": [], "catalogs": [{ "type": "movie", "id": "top", "name": "Popular", "extras": ["search"], "required": [] }] },
+                { "name": "AIOMetadata", "base": "https://aio.example", "resources": [], "catalogs": [{ "type": "movie", "id": "search.movie", "name": "Search", "extras": ["search"], "required": ["search"] }] }
+            ]
+            cats = Addons_searchCatalogs(addons)
+            m.assertEqual(cats[0].addonName, "AIOMetadata")
+            m.assertEqual(cats[1].addonName, "Cinemeta")
+        end function
+
+        @it("keeps hero fields in a full meta")
+        function _()
+            meta = Addons_parseMeta(ParseJson(FormatJson({ "meta": { "id": "tt1", "type": "movie", "name": "A", "logo": "L", "imdbRating": 8.1, "year": "2021", "runtime": "148 min", "genres": ["Acción"] } })))
+            m.assertEqual(meta.logo, "L")
+            m.assertEqual(meta.imdbRating, "8.1")
+            m.assertEqual(meta.year, "2021")
+            m.assertEqual(meta.runtime, "148 min")
+            m.assertEqual(meta.genres, "Acción")
+        end function
+
+        @it("keeps cast, director, age rating and episode details")
+        function _()
+            meta = Addons_parseMeta(ParseJson(FormatJson({ "meta": {
+                "id": "tt1", "type": "series", "name": "S",
+                "app_extras": {
+                    "certifications": { "AR": "+13", "US": "PG-13" },
+                    "directors": [{ "name": "Jon Watts" }],
+                    "cast": [{ "name": "Tom Holland", "character": "Peter Parker", "photo": "https://p/1.jpg" }, { "name": "No Photo", "character": "X" }]
+                },
+                "videos": [{ "id": "tt1:1:1", "season": 1, "episode": 1, "title": "Piloto", "thumbnail": "https://t/1.jpg", "overview": "Empieza.", "released": "2020-01-01T00:00:00.000Z" }]
+            } })))
+            m.assertEqual(meta.certification, "+13")
+            m.assertEqual(meta.director, "Jon Watts")
+            m.assertArrayCount(meta.cast, 1)
+            m.assertEqual(meta.cast[0].character, "Peter Parker")
+            m.assertEqual(meta.videos[0].thumbnail, "https://t/1.jpg")
+            m.assertEqual(meta.videos[0].overview, "Empieza.")
+            m.assertEqual(meta.videos[0].released, "2020-01-01T00:00:00.000Z")
+        end function
+
+        @it("drops director and cast names the Roku font cannot draw")
+        function _()
+            korean = Chr(&hB098) + Chr(&hD64D) + Chr(&hC9C4)
+            meta = Addons_parseMeta(ParseJson(FormatJson({ "meta": {
+                "id": "tt1", "type": "movie", "name": "M", "director": [korean],
+                "app_extras": {
+                    "directors": [{ "name": korean }],
+                    "cast": [{ "name": korean, "photo": "https://p/1.jpg" }, { "name": "Ñuño Pérez", "photo": "https://p/2.jpg" }, { "name": "Vincent D" + Chr(&h2019) + "Onofrio", "photo": "https://p/3.jpg" }]
+                }
+            } })))
+            m.assertEqual(meta.director, "")
+            m.assertArrayCount(meta.cast, 2)
+            m.assertEqual(meta.cast[0].name, "Ñuño Pérez")
+        end function
+
+        @it("falls back to the plain director list and empty extras (missing fields)")
+        function _()
+            meta = Addons_parseMeta(ParseJson(FormatJson({ "meta": { "id": "tt1", "type": "movie", "name": "M", "director": ["Ana", "Beto", "Caro"] } })))
+            m.assertEqual(meta.director, "Ana, Beto")
+            m.assertEqual(meta.certification, "")
+            m.assertArrayCount(meta.cast, 0)
+        end function
+
+        @it("parses a series meta with sorted videos")
+        function _()
+            meta = Addons_parseMeta(ParseJson(FormatJson({ "meta": { "id": "tt9", "type": "series", "name": "S", "releaseInfo": "2018-", "videos": [
+                { "id": "tt9:2:1", "season": 2, "episode": 1, "name": "B" },
+                { "id": "tt9:1:2", "season": 1, "number": 2, "title": "A2" },
+                { "id": "tt9:1:1", "season": 1, "episode": 1, "name": "A1" }
+            ] } })))
+            m.assertEqual(meta.videos[0].id, "tt9:1:1")
+            m.assertEqual(meta.videos[1].episode, 2)
+            m.assertEqual(meta.videos[1].title, "A2")
+            m.assertEqual(meta.releaseInfo, "2018-")
+        end function
+
+        @it("parses a meta without videos (missing fields)")
+        function _()
+            meta = Addons_parseMeta({ meta: { id: "tt1", type: "movie", name: "M" } })
+            m.assertArrayCount(meta.videos, 0)
+            m.assertEqual(meta.description, "")
+            m.assertInvalid(Addons_parseMeta({}))
+        end function
+
+        @it("parses streams and skips those without url or filename (missing fields)")
+        function _()
+            res = [{ ok: true, json: ParseJson(FormatJson({ "streams": [
+                { "name": "[RD+] Alpha" + Chr(10) + "1080p", "title": "Show.S03E04.1080p.WEB.h264-GRP" + Chr(10) + "👤 5 💾 2.3 GB", "url": "https://t/1", "behaviorHints": { "filename": "Show.S03E04.1080p.WEB.h264-GRP.mkv" } },
+                { "name": "[RD+] Alpha 720p", "title": "x", "url": "https://t/2", "behaviorHints": { "filename": "Show.S03E04.720p.HEVC.x265-GRP.mkv" } },
+                { "name": "no url", "behaviorHints": { "filename": "a.mkv" } },
+                { "name": "no hints", "url": "https://t/3" },
+                { "name": "external", "externalUrl": "https://netflix.com" }
+            ] })) }, { ok: false, json: invalid }]
+            streams = Addons_parseStreams(res, ["Alpha RD", "Beta"])
+            m.assertArrayCount(streams, 2)
+            m.assertEqual(streams[0].quality, "1080p")
+            m.assertEqual(streams[0].size, "2.3 GB")
+            m.assertEqual(streams[0].sizeMb, 2355)
+            m.assertEqual(streams[1].sizeMb, 0)
+        end function
+
+        @describe("stream facts")
+
+        @it("marks h264 with aac as direct and hevc or ac3 as converted")
+        function _()
+            m.assertEqual(Addons_compatWith(Addons_factsRe(), "Movie.2021.1080p.WEB.h264.AAC-GRP.mkv"), "direct")
+            m.assertEqual(Addons_compatWith(Addons_factsRe(), "Movie.2021.1080p.BluRay.x264.AAC5.1-GRP.mp4"), "direct")
+            m.assertEqual(Addons_compatWith(Addons_factsRe(), "Movie.mp4 📹 avc | 🔊 AAC • 5.1"), "direct")
+            m.assertEqual(Addons_compatWith(Addons_factsRe(), "Movie.2021.1080p.x265-GRP.mkv"), "convert")
+            m.assertEqual(Addons_compatWith(Addons_factsRe(), "Movie.2021.1080p.WEB.H264.DDP5.1-GRP.mkv"), "convert")
+            m.assertEqual(Addons_compatWith(Addons_factsRe(), "Movie.2021.1080p.x264.10bit.mkv"), "convert")
+            m.assertEqual(Addons_compatWith(Addons_factsRe(), "Movie 2021 Bluray 1080p AV1 AC3 5.1"), "convert")
+        end function
+
+        @it("treats files without codec info as converted")
+        function _()
+            m.assertEqual(Addons_compatWith(Addons_factsRe(), "Movie.2021.BDREMUX.1080p.mkv"), "convert")
+            ' WEB releases usually carry Dolby Digital Plus without saying so: H.264 alone is not enough.
+            m.assertEqual(Addons_compatWith(Addons_factsRe(), "Hope.2026.1080p.WEB.h264-GRP.mkv"), "convert")
+        end function
+
+        @it("reads languages from flags, spanish first")
+        function _()
+            langs = Addons_languagesWith(Addons_factsRe(), "💾 6.9 GB" + Chr(10) + "🇬🇧 / 🇮🇹 / 🇪🇸 / 🇰🇷")
+            m.assertEqual(langs.Join(","), "Español,Inglés,Italiano,Otro")
+        end function
+
+        @it("detects spanish without matching inside words")
+        function _()
+            m.assertEqual(Addons_languagesWith(Addons_factsRe(), "Movie.2021.DUAL.Latino.1080p.mkv").Join(","), "Español")
+            m.assertArrayCount(Addons_languagesWith(Addons_factsRe(), "Space.Jam.2021.1080p.mkv"), 0)
+        end function
+
+        @it("adds compat, languages, hdr and cache to parsed streams")
+        function _()
+            res = [{ ok: true, json: ParseJson(FormatJson({ "streams": [
+                { "name": "[RD+] Alpha" + Chr(10) + "1080p HDR", "title": "x" + Chr(10) + "👤 5 💾 2.3 GB" + Chr(10) + "🇪🇸 / 🇬🇧", "url": "https://t/1", "behaviorHints": { "filename": "Movie.2021.1080p.DV.x264.AAC.mkv" } }
+            ] })) }]
+            s = Addons_parseStreams(res, ["Alpha RD"])[0]
+            m.assertEqual(s.compat, "direct")
+            m.assertEqual(s.langs.Join(","), "Español,Inglés")
+            m.assertTrue(s.spanish)
+            m.assertEqual(s.hdr, "DV")
+            m.assertTrue(s.cached)
+        end function
+
+        @describe("ranking")
+
+        @it("orders 1080p, 720p, others, 4K last; lighter first within a quality")
+        function _()
+            streams = [
+                { label: "a", sizeMb: 10240, quality: "2160p", size: "10 GB" },
+                { label: "b", sizeMb: 500, quality: "720p", size: "500 MB" },
+                { label: "c", sizeMb: 3246, quality: "1080p", size: "3.17 GB" },
+                { label: "d", sizeMb: 0, quality: "", size: "" },
+                { label: "e", sizeMb: 894, quality: "1080p", size: "894.72 MB" },
+                { label: "f", sizeMb: 300, quality: "480p", size: "300 MB" }
+            ]
+            out = Addons_rankStreams(streams, "", {}, {}, false)
+            order = []
+            for each s in out
+                order.Push(Right(s.label, 1))
+            end for
+            m.assertEqual(order.Join(""), "ecbfda")
+            m.assertEqual(out[0].label, "e")
+        end function
+
+        @it("sends other years' releases to the end for movies")
+        function _()
+            streams = [
+                { label: "a", sizeMb: 1740, quality: "1080p", size: "1.7 GB", filename: "Hope.1970.TURKISH.1080p.mkv" },
+                { label: "b", sizeMb: 6144, quality: "1080p", size: "6 GB", filename: "Hope.2026.TS.1080p.MULTi.mkv" },
+                { label: "c", sizeMb: 1024, quality: "720p", size: "1 GB", filename: "Hope 1080p no year.mkv" }
+            ]
+            out = Addons_rankStreams(streams, "2026", {}, {}, false)
+            ' The 2026 release is a telesync (TS): above other years, below normal copies.
+            m.assertEqual(out[0].filename, "Hope 1080p no year.mkv")
+            m.assertEqual(out[1].filename, "Hope.2026.TS.1080p.MULTi.mkv")
+            m.assertEqual(out[2].filename, "Hope.1970.TURKISH.1080p.mkv")
+            m.assertFalse(Addons_otherYear(CreateObject("roRegex", "(?<![0-9a-z])(19|20)[0-9][0-9](?![0-9a-z])", "i"), "Hope 1920x1080.mkv", "2026"))
+        end function
+
+        @it("sends cinema, pre-release and hardsub copies near the end")
+        function _()
+            streams = [
+                { label: "prehd", sizeMb: 760, quality: "1080p", size: "", filename: "Movie.2026.1080p.PREHD ENG-GRP.x264.AAC.mp4" },
+                { label: "hdcam", sizeMb: 900, quality: "1080p", size: "", filename: "Movie.2026.HDCAM.1080p.mkv" },
+                { label: "hc", sizeMb: 950, quality: "1080p", size: "", filename: "Movie.2026.1080p.HC.WEBRip.mkv" },
+                { label: "web", sizeMb: 2000, quality: "1080p", size: "", filename: "Movie.2026.1080p.WEB.h264-GRP.mkv" },
+                { label: "uhd", sizeMb: 9000, quality: "2160p", size: "", filename: "Movie.2026.2160p.WEB.mkv" }
+            ]
+            out = Addons_rankStreams(streams, "", {}, {}, false)
+            m.assertEqual(out[0].label, "web")
+            m.assertEqual(out[1].label, "uhd")
+            m.assertEqual(out[out.Count() - 1].label, "hc")
+            m.assertTrue(Addons_isLowQualityCopy("Movie.CAMRip.mkv"))
+            m.assertFalse(Addons_isLowQualityCopy("Watch.Patch.1080p.mkv"))
+        end function
+
+        @it("ranks sources of addons that failed recently after the others")
+        function _()
+            streams = [
+                { label: "beta", sizeMb: 900, quality: "1080p", size: "", filename: "a.mkv", addon: "Beta | Host | RD" },
+                { label: "alpha", sizeMb: 2000, quality: "1080p", size: "", filename: "b.mkv", addon: "Alpha RD" }
+            ]
+            out = Addons_rankStreams(streams, "", { "Beta | Host | RD": true }, {}, false)
+            m.assertEqual(out[0].label, "alpha")
+            m.assertEqual(out[1].label, "beta")
+        end function
+
+        @it("flags addons that recently failed at least twice and more often than they worked")
+        function _()
+            records = ParseJson(FormatJson({
+                "Beta": { "fails": 3, "ok": 0, "at": 1000 },
+                "Alpha": { "fails": 1, "ok": 4, "at": 1000 },
+                "Flaky": { "fails": 2, "ok": 2, "at": 1000 },
+                "Old": { "fails": 5, "ok": 0, "at": 10 }
+            }))
+            recent = Addons_recentFailures(records, 1500, 600)
+            m.assertAAHasKey(recent, "Beta")
+            m.assertAANotHasKey(recent, "Alpha")
+            m.assertAANotHasKey(recent, "Flaky")
+            m.assertAANotHasKey(recent, "Old")
+            m.assertEqual(Addons_recentFailures(invalid, 1500, 600).Count(), 0)
+        end function
+
+        @it("counts outcomes per addon and restarts the count when it expired")
+        function _()
+            records = Addons_noteOutcome({}, "Beta", false, 1000, 600)
+            records = Addons_noteOutcome(records, "Beta", false, 1100, 600)
+            records = Addons_noteOutcome(records, "Beta", true, 1200, 600)
+            m.assertEqual(records["Beta"].fails, 2)
+            m.assertEqual(records["Beta"].ok, 1)
+            records = Addons_noteOutcome(records, "Beta", false, 5000, 600)
+            m.assertEqual(records["Beta"].fails, 1)
+            m.assertEqual(records["Beta"].ok, 0)
+        end function
+
+        @it("puts direct before converted and spanish first within a quality")
+        function _()
+            streams = [
+                { label: "conv", sizeMb: 900, quality: "1080p", compat: "convert", spanish: true },
+                { label: "dirEn", sizeMb: 2000, quality: "1080p", compat: "direct", spanish: false },
+                { label: "dirEs", sizeMb: 3000, quality: "1080p", compat: "direct", spanish: true },
+                { label: "dir720", sizeMb: 500, quality: "720p", compat: "direct", spanish: true }
+            ]
+            out = Addons_rankStreams(streams, "", {}, {}, false)
+            m.assertEqual(out[0].label, "dirEs")
+            m.assertEqual(out[1].label, "dirEn")
+            m.assertEqual(out[2].label, "conv")
+            m.assertEqual(out[3].label, "dir720")
+        end function
+
+        @it("puts direct 720p and 1080p first when resuming")
+        function _()
+            streams = [
+                { label: "conv1080", sizeMb: 900, quality: "1080p", compat: "convert" },
+                { label: "dir4k", sizeMb: 900, quality: "2160p", compat: "direct" },
+                { label: "dir720", sizeMb: 500, quality: "720p", compat: "direct" }
+            ]
+            out = Addons_rankStreams(streams, "", {}, {}, true)
+            m.assertEqual(out[0].label, "dir720")
+            m.assertEqual(out[1].label, "conv1080")
+        end function
+
+        @it("marks gray reasons and ranks failed files lower")
+        function _()
+            streams = [
+                { label: "failed", sizeMb: 900, quality: "1080p", filename: "a.mkv", addon: "T" },
+                { label: "ok", sizeMb: 2000, quality: "1080p", filename: "b.mkv", addon: "T" },
+                { label: "sample", sizeMb: 50, quality: "1080p", filename: "c.mkv", addon: "T" }
+            ]
+            out = Addons_rankStreams(streams, "", {}, { "a.mkv": true }, false)
+            m.assertEqual(out[0].label, "ok")
+            m.assertEqual(out[0].note, "")
+            m.assertEqual(out[1].note, "Muestra chica")
+            m.assertEqual(out[2].note, "Falló la última vez")
+        end function
+
+        @it("sends 3D copies near the end and marks them gray")
+        function _()
+            streams = [
+                { label: "3d", sizeMb: 2800, quality: "1080p", filename: "Movie.2021.1080p.3D.BluRay.HSBS.x264-GRP.mp4" },
+                { label: "sbs", sizeMb: 3100, quality: "1080p", filename: "Movie (2021) 3D H-SBS 1080p BluRay H264.mp4" },
+                { label: "flat", sizeMb: 9000, quality: "1080p", filename: "Movie.2021.1080p.BluRay.x264.mkv" },
+                { label: "3dworld", sizeMb: 1000, quality: "1080p", filename: "3Dworld.2021.1080p.x264.mkv" }
+            ]
+            out = Addons_rankStreams(streams, "", {}, {}, false)
+            m.assertEqual(out[0].label, "3dworld")
+            m.assertEqual(out[1].label, "flat")
+            m.assertEqual(out[2].note, "Es 3D")
+            m.assertEqual(out[3].note, "Es 3D")
+        end function
+
+        @it("remembers failed files, newest kept, expired ignored")
+        function _()
+            r = Addons_noteFailedFile({}, "a.mkv", 1000, 2)
+            r = Addons_noteFailedFile(r, "b.mkv", 1100, 2)
+            r = Addons_noteFailedFile(r, "c.mkv", 1200, 2)
+            m.assertAANotHasKey(r, "a.mkv")
+            recent = Addons_recentFailedFiles(r, 1250, 100)
+            m.assertAAHasKey(recent, "c.mkv")
+            m.assertAANotHasKey(recent, "b.mkv")
+            m.assertEqual(Addons_recentFailedFiles(invalid, 0, 1).Count(), 0)
+        end function
+
+        @it("keeps the first n streams of each quality, in order")
+        function _()
+            streams = [{ quality: "1080p" }, { quality: "1080p" }, { quality: "1080p" }, { quality: "720p" }, { quality: "2160p" }, { quality: "4k" }, { quality: "" }]
+            out = Addons_capPerQuality(streams, 2)
+            qualities = []
+            for each s in out
+                qualities.Push(s.quality)
+            end for
+            m.assertEqual(qualities.Join(","), "1080p,1080p,720p,2160p,4k,")
+        end function
+
+        @it("puts unknown sizes and tiny sample files last within a quality")
+        function _()
+            streams = [
+                { label: "nosize", sizeMb: 0, quality: "1080p", size: "" },
+                { label: "sample", sizeMb: 28, quality: "1080p", size: "28.5 MB" },
+                { label: "real", sizeMb: 1228, quality: "1080p", size: "1.2 GB" },
+                { label: "bigger", sizeMb: 4096, quality: "1080p", size: "4 GB" }
+            ]
+            out = Addons_rankStreams(streams, "", {}, {}, false)
+            m.assertEqual(out[0].label, "real")
+            m.assertEqual(out[1].label, "bigger")
+            m.assertEqual(out[2].label, "nosize")
+            m.assertEqual(out[3].label, "sample")
+        end function
+
+    end class
+end namespace

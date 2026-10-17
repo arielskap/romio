@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="RdKeyScreen" extends="Screen">
+  <script type="text/brightscript" uri="RdKeyScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common/Ui.brs" />
+  <children>
+    <Label text="Clave de Real-Debrid" translation="[160,70]" font="font:LargeBoldSystemFont" />
+    <Label text="La encontrás en real-debrid.com/apitoken" translation="[160,150]" color="0xAAAAAAFF" />
+    <DynamicKeyboard id="keyboard" translation="[160,210]" />
+    <Button id="save" text="Guardar" translation="[160,860]" minWidth="400" />
+    <Label id="message" translation="[160,950]" width="1600" wrap="true" color="0xFF8A80FF" />
+  </children>
+</component>

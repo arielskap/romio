@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="DetailScreen" extends="Screen">
+  <script type="text/brightscript" uri="DetailScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common/Ui.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Format.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Meta.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Library.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Art.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Watched.brs" />
+  <children>
+    <Rectangle width="1920" height="1080" color="0x0B0B0FFF" />
+    <Hero id="hero" visible="false" />
+    <Skeleton id="skeleton" layout="hero" />
+    <Label id="message" translation="[80,620]" width="1760" wrap="true" color="0xFF8A80FF" />
+    <!-- Below the header: movies show related titles and cast, series show seasons and episodes. -->
+    <Group id="lower" translation="[0,655]">
+      <RowList
+        id="related"
+        translation="[80,0]"
+        itemComponentName="PosterItem"
+        itemSize="[1840,460]"
+        numRows="1"
+        rowItemSize="[[220,400]]"
+        rowItemSpacing="[[24,0]]"
+        rowLabelOffset="[[0,12]]"
+        showRowLabel="[true]"
+        focusBitmapUri="pkg:/images/focus.9.png"
+        visible="false" />
+      <RowList
+        id="cast"
+        itemComponentName="CastItem"
+        itemSize="[1840,300]"
+        numRows="1"
+        rowItemSize="[[180,240]]"
+        rowItemSpacing="[[24,0]]"
+        rowLabelOffset="[[0,12]]"
+        showRowLabel="[true]"
+        focusBitmapUri="pkg:/images/focus.9.png"
+        visible="false" />
+      <NavBar id="seasons" translation="[80,0]" showBrand="false" visible="false" />
+      <RowList
+        id="episodes"
+        translation="[80,80]"
+        itemComponentName="PosterItem"
+        itemSize="[1840,280]"
+        numRows="1"
+        rowItemSize="[[330,260]]"
+        rowItemSpacing="[[24,0]]"
+        showRowLabel="[false]"
+        focusBitmapUri="pkg:/images/focus.9.png"
+        visible="false" />
+      <Label id="epOverview" translation="[80,350]" width="1760" wrap="true" maxLines="2" color="0xD0D0D0FF" font="font:SmallSystemFont" />
+    </Group>
+  </children>
+</component>

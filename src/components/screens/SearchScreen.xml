@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="SearchScreen" extends="Screen">
+  <script type="text/brightscript" uri="SearchScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common/Ui.brs" />
+  <children>
+    <Label text="Buscar" translation="[80,50]" font="font:LargeBoldSystemFont" />
+    <DynamicKeyboard id="keyboard" translation="[80,120]" />
+    <Button id="go" text="Buscar" translation="[80,580]" minWidth="400" />
+    <Label id="message" translation="[560,600]" width="1280" />
+    <RowList
+      id="results"
+      translation="[80,670]"
+      itemComponentName="PosterItem"
+      itemSize="[1760,420]"
+      numRows="1"
+      rowItemSize="[[220,400]]"
+      rowItemSpacing="[[24,0]]"
+      showRowLabel="[false]"
+      visible="false" />
+  </children>
+</component>

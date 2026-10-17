@@ -1,0 +1,114 @@
+namespace tests
+    @suite("Meta")
+    class MetaTests extends rooibos.BaseTestSuite
+
+        function videos() as object
+            return [
+                { id: "tt9:0:1", season: 0, episode: 1, title: "Special" },
+                { id: "tt9:1:1", season: 1, episode: 1, title: "A1" },
+                { id: "tt9:1:2", season: 1, episode: 2, title: "A2" },
+                { id: "tt9:2:1", season: 2, episode: 1, title: "B1" }
+            ]
+        end function
+
+        @describe("Meta helpers")
+
+        @it("parses series video ids")
+        function _()
+            ep = Meta_parseVideoId("tt2708480:3:4")
+            m.assertEqual(ep.season, 3)
+            m.assertEqual(ep.episode, 4)
+            m.assertInvalid(Meta_parseVideoId("tt27369017"))
+            m.assertInvalid(Meta_parseVideoId("kitsu:1:2"))
+        end function
+
+        @it("orders seasons with specials last")
+        function _()
+            s = Meta_seasons(m.videos())
+            m.assertEqual(FormatJson(s), "[1,2,0]")
+        end function
+
+        @it("filters episodes by season")
+        function _()
+            m.assertArrayCount(Meta_episodes(m.videos(), 1), 2)
+        end function
+
+        @it("finds the episode index")
+        function _()
+            eps = Meta_episodes(m.videos(), 1)
+            m.assertEqual(Meta_indexOfVideo(eps, "tt9:1:2"), 1)
+            m.assertEqual(Meta_indexOfVideo(eps, "nope"), 0)
+        end function
+
+        @describe("Related titles")
+
+        @it("takes the saga name before a colon or dash")
+        function _()
+            m.assertEqual(Meta_baseName("Spider-Man: Sin camino a casa"), "Spider-Man")
+            m.assertEqual(Meta_baseName("Misión Imposible - Repercusión"), "Misión Imposible")
+            m.assertEqual(Meta_baseName("Dune"), "Dune")
+        end function
+
+        @it("lists related titles newest first, without self or unreleased")
+        function _()
+            metas = [
+                { "id": "tt1", "name": "Dune", "year": "2002", "released": "2002-05-03T00:00:00.000Z" },
+                { "id": "tt9", "name": "Dune", "year": "2027", "released": "" },
+                { "id": "tt5", "name": "Dune", "year": "2021", "released": "2021-12-17T00:00:00.000Z" },
+                { "id": "tt8", "name": "Dune", "year": "2026", "released": "2026-12-25T00:00:00.000Z" },
+                { "id": "tt3", "name": "Dune", "year": "2019", "released": "" },
+                { "id": "tt0", "name": "Dune", "year": "", "released": "" }
+            ]
+            out = Meta_related(metas, "tt5", "Dune", "2026-10-16T00:00:00Z")
+            ids = []
+            for each x in out
+                ids.Push(x.id)
+            end for
+            m.assertEqual(ids.Join(","), "tt3,tt1,tt0")
+        end function
+
+        @it("keeps only related titles whose name contains the base name, ignoring case")
+        function _()
+            metas = [
+                { "id": "tt1", "name": "Rescate en el golfo", "year": "2025", "released": "" },
+                { "id": "tt2", "name": "SPIDER-MAN: Lejos de casa", "year": "2019", "released": "" },
+                { "id": "tt3", "name": "The Amazing Spider-Man", "year": "2012", "released": "" },
+                { "id": "tt4", "year": "2010", "released": "" }
+            ]
+            out = Meta_related(metas, "tt0", "Spider-Man", "2026-10-16T00:00:00Z")
+            m.assertArrayCount(out, 2)
+            m.assertEqual(out[0].id, "tt2")
+            m.assertEqual(out[1].id, "tt3")
+        end function
+
+        @it("finds the next released episode")
+        function _()
+            videos = [
+                { id: "tt1:0:1", season: 0, episode: 1, released: "" },
+                { id: "tt1:1:1", season: 1, episode: 1, released: "2020-01-01T00:00:00.000Z" },
+                { id: "tt1:1:2", season: 1, episode: 2, released: "2020-01-08T00:00:00.000Z" },
+                { id: "tt1:2:1", season: 2, episode: 1, released: "2027-01-01T00:00:00.000Z" }
+            ]
+            m.assertEqual(Meta_nextEpisode(videos, "tt1:1:1", "2026-10-16T00:00:00Z").id, "tt1:1:2")
+            m.assertInvalid(Meta_nextEpisode(videos, "tt1:1:2", "2026-10-16T00:00:00Z"))
+        end function
+
+        @it("tells released episodes from upcoming ones")
+        function _()
+            today = "2026-10-16T00:00:00Z"
+            m.assertTrue(Meta_isReleased({ released: "2026-10-01T00:00:00Z" }, today))
+            m.assertFalse(Meta_isReleased({ released: "2026-11-01T00:00:00Z" }, today))
+            m.assertTrue(Meta_isReleased({ released: "" }, today))
+            m.assertTrue(Meta_isReleased({}, today))
+        end function
+
+        @it("returns invalid when there is no next")
+        function _()
+            videos = [{ id: "tt1:1:1", season: 1, episode: 1, released: "" }]
+            m.assertInvalid(Meta_nextEpisode(videos, "tt1:1:1", "2026-10-16T00:00:00Z"))
+            m.assertInvalid(Meta_nextEpisode(videos, "tt9:1:1", "2026-10-16T00:00:00Z"))
+            m.assertInvalid(Meta_nextEpisode([], "tt1:1:1", "2026-10-16T00:00:00Z"))
+        end function
+
+    end class
+end namespace

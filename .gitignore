@@ -1,0 +1,6 @@
+.env
+out/
+*.zip
+.superpowers/
+node_modules/
+docs/

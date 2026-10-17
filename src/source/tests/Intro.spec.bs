@@ -1,0 +1,34 @@
+namespace tests
+    @suite("Intro")
+    class IntroTests extends rooibos.BaseTestSuite
+
+        @describe("Intro_step")
+
+        @it("waits while the animation runs")
+        function _()
+            m.assertEqual(Intro_step(false, false), "wait")
+        end function
+
+        @it("waits for the animation even if boot is done")
+        function _()
+            m.assertEqual(Intro_step(false, true), "wait")
+        end function
+
+        @it("shows the skeleton when the animation ended before boot")
+        function _()
+            m.assertEqual(Intro_step(true, false), "skeleton")
+        end function
+
+        @it("goes on when both are done")
+        function _()
+            m.assertEqual(Intro_step(true, true), "go")
+        end function
+
+        @it("retry after the intro shows the skeleton")
+        function _()
+            ' A retry keeps animDone = true from the first run, so it never replays the intro.
+            m.assertEqual(Intro_step(true, false), "skeleton")
+        end function
+
+    end class
+end namespace

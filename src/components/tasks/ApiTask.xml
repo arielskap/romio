@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="ApiTask" extends="Task">
+  <interface>
+    <field id="op" type="string" />
+    <field id="args" type="assocarray" />
+    <field id="result" type="assocarray" />
+  </interface>
+  <script type="text/brightscript" uri="ApiTask.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Format.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Http.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Stremio.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Addons.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Meta.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Library.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/RealDebrid.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Subtitles.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Media.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Flows.brs" />
+</component>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Round cast photo (a background-colored mask hides the corners) with name and character. -->
+<component name="CastItem" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="onContent" />
+  </interface>
+  <script type="text/brightscript" uri="CastItem.brs" />
+  <children>
+    <Rectangle translation="[20,0]" width="140" height="140" color="0x1C1C22FF" />
+    <Poster id="photo" translation="[20,0]" width="140" height="140" loadWidth="140" loadHeight="140" loadDisplayMode="scaleToZoom" />
+    <Poster uri="pkg:/images/mask_circle.png" translation="[10,-10]" width="160" height="160" />
+    <Label id="name" translation="[0,156]" width="180" horizAlign="center" font="font:SmallBoldSystemFont" />
+    <Label id="character" translation="[0,190]" width="180" horizAlign="center" color="0xAAAAAAFF" font="font:SmallestSystemFont" />
+  </children>
+</component>

@@ -1,0 +1,63 @@
+namespace tests
+    @suite("Media")
+    class MediaTests extends rooibos.BaseTestSuite
+
+        function hex(text as string) as string
+            b = CreateObject("roByteArray")
+            b.FromAsciiString(text)
+            return b.ToHexString()
+        end function
+
+        @describe("codec sniffing")
+
+        @it("reads MKV codec ids in track order")
+        function _()
+            info = Media_info(m.hex("xx" + "V_MPEG4/ISO/AVC" + "yy" + "A_AAC" + "zz" + "A_AC3"))
+            m.assertEqual(info.video, "h264")
+            m.assertEqual(info.audio, "aac")
+            info = Media_info(m.hex("V_MPEGH/ISO/HEVC" + "A_EAC3"))
+            m.assertEqual(info.video, "hevc")
+            m.assertEqual(info.audio, "eac3")
+        end function
+
+        @it("does not mistake EAC3 for AC3 and reads MP4 fourccs")
+        function _()
+            m.assertEqual(Media_info(m.hex("V_MPEG4/ISO/AVC" + "A_EAC3")).audio, "eac3")
+            info = Media_info(m.hex("ftyp" + "avc1" + "ac-3"))
+            m.assertEqual(info.video, "h264")
+            m.assertEqual(info.audio, "ac3")
+            m.assertEqual(Media_info(m.hex("ftypavc1mp4a")).audio, "aac")
+        end function
+
+        @it("ignores matches that straddle a byte boundary")
+        function _()
+            m.assertEqual(Media_info("0" + m.hex("A_AAC") + "0").audio, "")
+        end function
+
+        @it("reads MP4 box headers, including 64-bit sizes")
+        function _()
+            b = CreateObject("roByteArray")
+            ' ftyp of 24 bytes, then an mdat with size 1 and a 64-bit size of 5 GB (0x140000000).
+            b.FromHexString("00000018" + "66747970" + "6973 6f6d".Replace(" ", "") + "0000020069736f6d69736f32" + "00000001" + "6d646174" + "0000000140000000")
+            h = Media_boxHeader(b, 0)
+            m.assertEqual(h.type, "ftyp")
+            m.assertTrue(h.size = 24)
+            m.assertEqual(h.header, 8)
+            h = Media_boxHeader(b, 24)
+            m.assertEqual(h.type, "mdat")
+            m.assertTrue(h.size = 5368709120&)
+            m.assertEqual(h.header, 16)
+            m.assertInvalid(Media_boxHeader(b, 36))
+        end function
+
+        @it("plays direct only H.264 with AAC or MP3 as first audio")
+        function _()
+            m.assertTrue(Media_canDirect({ video: "h264", audio: "aac" }))
+            m.assertTrue(Media_canDirect({ video: "h264", audio: "mp3" }))
+            m.assertFalse(Media_canDirect({ video: "h264", audio: "ac3" }))
+            m.assertFalse(Media_canDirect({ video: "hevc", audio: "aac" }))
+            m.assertFalse(Media_canDirect({ video: "h264", audio: "" }))
+        end function
+
+    end class
+end namespace

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A row of buttons: the primary one (primaryIndex, first by default) is white. Left/right move, OK sets `action` to the button's id. -->
+<component name="ButtonRow" extends="Group">
+  <interface>
+    <field id="buttons" type="array" onChange="build" />
+    <field id="action" type="string" alwaysNotify="true" />
+    <field id="focusIndex" type="integer" value="0" onChange="renderFocus" />
+    <field id="primaryIndex" type="integer" value="0" />
+    <!-- { index, label }: changes one button's text without rebuilding the row (same width). -->
+    <field id="relabel" type="assocarray" onChange="onRelabel" />
+  </interface>
+  <script type="text/brightscript" uri="ButtonRow.brs" />
+  <children>
+    <Group id="row" />
+    <Poster id="ring" uri="pkg:/images/focus.9.png" height="80" visible="false" />
+  </children>
+</component>

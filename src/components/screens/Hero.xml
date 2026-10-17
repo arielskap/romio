@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home's featured title: full-screen background, logo or name, facts, description and two buttons. -->
+<component name="Hero" extends="Group">
+  <interface>
+    <field id="data" type="assocarray" onChange="onData" />
+    <field id="buttons" type="array" onChange="buildButtons" />
+    <field id="action" type="string" alwaysNotify="true" />
+    <!-- Rows scrolled over the hero: only a darkened background stays. -->
+    <field id="dimmed" type="boolean" onChange="onDimmed" />
+  </interface>
+  <script type="text/brightscript" uri="Hero.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Art.brs" />
+  <children>
+    <Poster id="background" width="1920" height="1080" loadWidth="1280" loadHeight="720" loadDisplayMode="scaleToZoom" />
+    <Poster uri="pkg:/images/fade_left.png" width="1920" height="1080" />
+    <Poster uri="pkg:/images/fade_bottom.png" width="1920" height="1080" />
+    <Group id="info">
+      <Poster id="logo" translation="[80,150]" width="560" height="150" loadWidth="560" loadHeight="150" loadDisplayMode="scaleToFit" />
+      <Label id="name" translation="[80,190]" width="900" font="font:LargeBoldSystemFont" visible="false" />
+      <Group id="facts" translation="[80,320]">
+        <Rectangle id="badge" height="36" color="0xF5C518FF" />
+        <Label id="badgeText" translation="[10,4]" color="0x000000FF" font="font:SmallBoldSystemFont" />
+        <Rectangle id="ageBorder" height="36" color="0xAAAAAAFF" />
+        <Rectangle id="ageFill" height="32" color="0x0B0B0FFF" />
+        <Label id="ageText" color="0xFFFFFFFF" font="font:SmallBoldSystemFont" />
+        <Label id="factsText" translation="[0,4]" color="0xCFCFCFFF" font="font:SmallSystemFont" />
+      </Group>
+      <Rectangle id="barBg" translation="[80,376]" width="220" height="6" color="0xFFFFFF4D" />
+      <Rectangle id="barFill" translation="[80,376]" height="6" color="0xF2613FFF" />
+      <Label id="progressText" translation="[80,362]" font="font:SmallBoldSystemFont" />
+      <Label id="description" translation="[80,400]" width="760" wrap="true" maxLines="3" color="0xD0D0D0FF" font="font:SmallSystemFont" />
+      <Label id="director" translation="[80,505]" width="760" color="0xAAAAAAFF" font="font:SmallestSystemFont" />
+      <ButtonRow id="row" translation="[80,545]" />
+    </Group>
+  </children>
+</component>

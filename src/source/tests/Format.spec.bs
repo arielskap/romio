@@ -1,0 +1,35 @@
+namespace tests
+    @suite("Format")
+    class FormatTests extends rooibos.BaseTestSuite
+
+        @describe("Format_time")
+
+        @it("formats zero")
+        function _()
+            m.assertEqual(Format_time(0), "0:00")
+        end function
+
+        @it("formats minutes and seconds")
+        function _()
+            m.assertEqual(Format_time(2043194), "34:03")
+        end function
+
+        @it("formats hours")
+        function _()
+            m.assertEqual(Format_time(9036254), "2:30:36")
+        end function
+
+        @it("pads single digits")
+        function _()
+            m.assertEqual(Format_time(65000), "1:05")
+        end function
+
+        @it("tells when the video ends, wrapping past midnight")
+        function _()
+            m.assertEqual(Format_endsAt(23, 13, 1708), "23:41")
+            m.assertEqual(Format_endsAt(23, 50, 1800), "00:20")
+            m.assertEqual(Format_endsAt(9, 5, 0), "09:05")
+        end function
+
+    end class
+end namespace

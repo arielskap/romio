@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sources for one video: the recommended one on top, then the rest by quality tab. -->
+<component name="StreamsScreen" extends="Screen">
+  <script type="text/brightscript" uri="StreamsScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common/Ui.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Sources.brs" />
+  <children>
+    <Rectangle width="1920" height="1080" color="0x0B0B0FFF" />
+    <Label id="title" translation="[80,50]" width="1760" font="font:LargeBoldSystemFont" />
+    <Label id="message" translation="[80,118]" width="1760" color="0xAAAAAAFF" />
+    <Group id="card" translation="[80,170]" visible="false">
+      <Rectangle width="1760" height="196" color="0xF2613F2E" />
+      <Label translation="[20,22]" text="RECOMENDADA" color="0xA48BFFFF" font="font:SmallBoldSystemFont" />
+      <Group translation="[1470,12]">
+        <Rectangle width="270" height="56" color="0xFFFFFFFF" />
+        <Poster uri="pkg:/images/icon_play.png" translation="[24,8]" width="40" height="40" />
+        <Label translation="[74,12]" text="Reproducir" color="0x000000FF" font="font:SmallBoldSystemFont" />
+      </Group>
+      <SourceItem id="cardItem" translation="[0,84]" />
+      <Poster id="ring" uri="pkg:/images/focus.9.png" translation="[-8,-8]" width="1776" height="212" visible="false" />
+    </Group>
+    <NavBar id="tabs" translation="[80,392]" showBrand="false" visible="false" />
+    <MarkupList id="list" translation="[80,480]" itemComponentName="SourceItem" itemSize="[1760,104]" itemSpacing="[0,8]" numRows="5"
+      vertFocusAnimationStyle="floatingFocus" focusBitmapUri="pkg:/images/focus.9.png" />
+  </children>
+</component>

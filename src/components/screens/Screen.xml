@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="Screen" extends="Group">
+  <interface>
+    <field id="params" type="assocarray" />
+    <field id="active" type="boolean" alwaysNotify="true" />
+    <field id="navigate" type="assocarray" alwaysNotify="true" />
+  </interface>
+  <children>
+    <!-- Focusing the screen itself doesn't take focus from a focused child: Ui_parkFocus focuses this
+         empty node instead, so hidden lists and buttons stop getting keys and every key reaches onKeyEvent. -->
+    <Group id="keys" focusable="true" />
+  </children>
+</component>

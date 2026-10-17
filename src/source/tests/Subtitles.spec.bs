@@ -1,0 +1,118 @@
+namespace tests
+    @suite("Subtitles")
+    class SubtitlesTests extends rooibos.BaseTestSuite
+
+        function subs() as object
+            res = [
+                { ok: true, json: { subtitles: [
+                    { lang: "eng", url: "https://subs5.strem.io/e1" },
+                    { lang: "spa", url: "https://dl.opensubtitles.org/file/1.srt" },
+                    { lang: "spa", url: "https://subs5.strem.io/s1" },
+                    { lang: "spa" },
+                    { url: "https://no-lang" }
+                ] } },
+                { ok: false, json: invalid },
+                { ok: true, json: { subtitles: [{ lang: "spa", url: "https://subs5.strem.io/s1" }] } }
+            ]
+            return Subs_parse(res, ["SubSense", "Down", "OpenSubtitles v3"])
+        end function
+
+        @describe("Subtitles")
+
+        @it("parses, skips incomplete entries and removes duplicate urls (missing fields)")
+        function _()
+            s = m.subs()
+            m.assertArrayCount(s, 3)
+            m.assertEqual(s[1].addon, "SubSense")
+        end function
+
+        @it("prefers Spanish from strem.io")
+        function _()
+            m.assertEqual(Subs_pickIndex(m.subs()), 2)
+        end function
+
+        @it("falls back to any Spanish, then none")
+        function _()
+            m.assertEqual(Subs_pickIndex([{ lang: "eng", url: "a" }, { lang: "es", url: "https://dl/x.srt" }]), 1)
+            m.assertEqual(Subs_pickIndex([{ lang: "eng", url: "a" }]), -1)
+        end function
+
+        @it("builds Roku subtitle tracks")
+        function _()
+            t = Subs_tracks([{ lang: "spa", url: "https://u", addon: "SubSense" }])
+            m.assertEqual(t[0].TrackName, "https://u")
+            m.assertEqual(t[0].Language, "spa")
+            m.assertEqual(t[0].Description, "Español · SubSense")
+        end function
+
+        @it("detects English by language code")
+        function _()
+            m.assertTrue(Subs_isEnglish("eng"))
+            m.assertTrue(Subs_isEnglish("en"))
+            m.assertFalse(Subs_isEnglish("spa"))
+        end function
+
+        @describe("sync")
+
+        @it("shifts every cue by the offset and clamps at zero")
+        function _()
+            cr = Chr(13)
+            nl = Chr(10)
+            srt = "1" + cr + nl + "00:01:54,281 --> 00:01:57,368" + cr + nl + "Justo ahí." + cr + nl + cr + nl + "2" + nl + "00:00:01.000 --> 00:00:02.500" + nl + "Hola" + nl
+            out = Subs_shift(srt, 5000)
+            m.assertTrue(out.Instr("00:01:59,281 --> 00:02:02,368" + cr + nl) >= 0)
+            m.assertTrue(out.Instr("00:00:06,000 --> 00:00:07,500") >= 0)
+            m.assertTrue(out.Instr("Justo ahí.") >= 0)
+            back = Subs_shift(srt, -3000)
+            m.assertTrue(back.Instr("00:00:00,000 --> 00:00:00,000") >= 0)
+            m.assertTrue(back.Instr("00:01:51,281 --> 00:01:54,368") >= 0)
+        end function
+
+        @it("formats the offset for the screen")
+        function _()
+            m.assertEqual(Subs_formatOffset(0), "+0,0 s")
+            m.assertEqual(Subs_formatOffset(1500), "+1,5 s")
+            m.assertEqual(Subs_formatOffset(-2000), "-2,0 s")
+        end function
+
+        @it("names languages")
+        function _()
+            m.assertEqual(Subs_langName("spl"), "Español")
+            m.assertEqual(Subs_langName("eng"), "Inglés")
+            m.assertEqual(Subs_langName("ita"), "ITA")
+        end function
+
+        @it("numbers repeated languages and marks the active one")
+        function _()
+            subs = [
+                { lang: "spa", url: "u1", addon: "OpenSubtitles v3" },
+                { lang: "spa", url: "u2", addon: "SubSense" },
+                { lang: "eng", url: "u3", addon: "OpenSubtitles v3" }
+            ]
+            labels = Subs_menuLabels(subs, "u2")
+            m.assertEqual(labels[0], "Sin subtítulos")
+            m.assertEqual(labels[1], "Español 1 · OpenSubtitles v3")
+            m.assertEqual(labels[2], "Español 2 · SubSense (activo)")
+            m.assertEqual(labels[3], "Inglés · OpenSubtitles v3")
+            m.assertEqual(Subs_menuLabels(subs, "")[0], "Sin subtítulos (activo)")
+        end function
+
+        @it("lists Spanish first (strem.io first), then English, then the rest")
+        function _()
+            subs = [
+                { lang: "ita", url: "https://x/1", addon: "A" },
+                { lang: "eng", url: "https://x/2", addon: "A" },
+                { lang: "spa", url: "https://dl.opensubtitles.org/3", addon: "A" },
+                { lang: "spa", url: "https://subs5.strem.io/4", addon: "A" },
+                { lang: "pob", url: "https://x/5", addon: "A" }
+            ]
+            out = Subs_menuOrder(subs)
+            urls = []
+            for each s in out
+                urls.Push(Right(s.url, 1))
+            end for
+            m.assertEqual(urls.Join(""), "43215")
+        end function
+
+    end class
+end namespace

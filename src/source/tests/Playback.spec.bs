@@ -1,0 +1,117 @@
+namespace tests
+    @suite("Playback")
+    class PlaybackTests extends rooibos.BaseTestSuite
+
+        @describe("Playback decisions")
+
+        @it("next source keeps the furthest resume point")
+        function _()
+            m.assertEqual(Playback_nextSourceResume(2043194, 0), 2043194)
+            m.assertEqual(Playback_nextSourceResume(10000, 50.5), 50500)
+        end function
+
+        @it("does not save after a failure, before starting, or for unknown items when the library did not load")
+        function _()
+            m.assertFalse(Playback_canSave({ started: true, failed: true, fellBack: false, resumeMs: 0, positionMs: 60000, libraryLoaded: true, itemKnown: true }))
+            m.assertFalse(Playback_canSave({ started: false, failed: false, fellBack: false, resumeMs: 0, positionMs: 60000, libraryLoaded: true, itemKnown: true }))
+            m.assertFalse(Playback_canSave({ started: true, failed: false, fellBack: false, resumeMs: 0, positionMs: 60000, libraryLoaded: false, itemKnown: false }))
+            m.assertFalse(Playback_canSave({ started: true, failed: false, fellBack: true, resumeMs: 2043194, positionMs: 30000, libraryLoaded: true, itemKnown: true }))
+            m.assertTrue(Playback_canSave({ started: true, failed: false, fellBack: false, resumeMs: 0, positionMs: 60000, libraryLoaded: false, itemKnown: true }))
+            m.assertTrue(Playback_canSave({ started: true, failed: false, fellBack: false, resumeMs: 0, positionMs: 60000, libraryLoaded: true, itemKnown: false }))
+        end function
+
+        @it("leaves startup after a fallback to the 90s convert timer")
+        function _()
+            m.assertFalse(Playback_watchActive(false, 2043194, true, "buffering", false))
+            m.assertFalse(Playback_watchActive(false, 0, false, "buffering", false))
+            m.assertFalse(Playback_watchActive(true, 0, false, "paused", false))
+            m.assertTrue(Playback_watchActive(false, 2043194, false, "buffering", false))
+            m.assertTrue(Playback_watchActive(true, 0, false, "buffering", false))
+            ' Direct files seek natively: the transcode stall watchdog never applies.
+            m.assertFalse(Playback_watchActive(true, 0, false, "buffering", true))
+        end function
+
+        @it("opens subtitles only while playing without overlays")
+        function _()
+            m.assertTrue(Playback_canOpenSubtitles(true, false, false))
+            m.assertFalse(Playback_canOpenSubtitles(true, false, true))
+            m.assertFalse(Playback_canOpenSubtitles(true, true, false))
+            m.assertFalse(Playback_canOpenSubtitles(false, false, false))
+        end function
+
+        @it("never saves an unreached seek target as progress")
+        function _()
+            m.assertEqual(Playback_savePosition(600000, 119.6, 0, false), 119600)
+            m.assertEqual(Playback_savePosition(122000, 119.6, 0, false), 122000)
+            m.assertEqual(Playback_savePosition(30000, 29.5, 0, false), 30000)
+            ' Stuck at the resume point before any smooth progress: keep the resume point, not 0.
+            m.assertEqual(Playback_savePosition(1800000, 0, 1800000, false), 1800000)
+            m.assertEqual(Playback_savePosition(3600000, 0, 1800000, false), 1800000)
+            ' A direct file reports the real position after a seek.
+            m.assertEqual(Playback_savePosition(600000, 119.6, 0, true), 600000)
+        end function
+
+        @it("falls back to 0:00 only while the resume point was never reached")
+        function _()
+            m.assertTrue(Playback_shouldFallBack(2043194, false, 0))
+            m.assertFalse(Playback_shouldFallBack(2043194, true, 0))
+            m.assertFalse(Playback_shouldFallBack(2043194, false, 2040))
+            m.assertFalse(Playback_shouldFallBack(0, false, 0))
+        end function
+
+        @it("waits for Real-Debrid on short jumps, returns on long ones or after a minute")
+        function _()
+            m.assertEqual(Playback_stallAction(18, 15), "wait")
+            m.assertEqual(Playback_stallAction(120, 45), "wait")
+            m.assertEqual(Playback_stallAction(120, 60), "return")
+            m.assertEqual(Playback_stallAction(600, 15), "return")
+        end function
+
+        @describe("autoplay")
+
+        @it("tries the next source while attempts remain")
+        function _()
+            m.assertEqual(Playback_autoNext(true, false, false, 1, 0, 10, 0), "next")
+            m.assertEqual(Playback_autoNext(true, false, false, 2, 1, 10, 0), "next")
+        end function
+
+        @it("opens the sources screen after the third failure")
+        function _()
+            m.assertEqual(Playback_autoNext(true, false, false, 3, 2, 10, 0), "sources")
+            m.assertEqual(Playback_autoNext(true, false, false, 1, 0, 1, 0), "sources")
+        end function
+
+        @it("opens the sources screen once autoplay has been trying for four minutes")
+        function _()
+            m.assertEqual(Playback_autoNext(true, false, false, 1, 0, 10, 239), "next")
+            m.assertEqual(Playback_autoNext(true, false, false, 1, 0, 10, 240), "sources")
+            m.assertEqual(Playback_autoNext(true, true, false, 1, 0, 10, 300), "stop")
+        end function
+
+        @it("stops on a key problem, after playback started, or outside autoplay")
+        function _()
+            m.assertEqual(Playback_autoNext(true, false, true, 1, 0, 10, 0), "stop")
+            m.assertEqual(Playback_autoNext(true, true, false, 1, 0, 10, 0), "stop")
+            m.assertEqual(Playback_autoNext(false, false, false, 1, 0, 10, 0), "stop")
+        end function
+
+        @describe("player controls")
+
+        @it("clamps seek targets to the video")
+        function _()
+            m.assertEqual(Playback_seekTarget(100, -10, 0), 90)
+            m.assertEqual(Playback_seekTarget(5, -10, 3000), 0)
+            m.assertEqual(Playback_seekTarget(2990, 10, 3000), 2997)
+            m.assertEqual(Playback_seekTarget(100.6, 60, 3000), 160)
+        end function
+
+        @it("shows the next episode card in the last 40 seconds")
+        function _()
+            m.assertTrue(Playback_showNextCard(2560, 2600, false))
+            m.assertFalse(Playback_showNextCard(2500, 2600, false))
+            m.assertFalse(Playback_showNextCard(2590, 2600, true))
+            m.assertFalse(Playback_showNextCard(10, 30, false))
+        end function
+
+    end class
+end namespace

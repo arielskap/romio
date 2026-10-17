@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Siguiente episodio" card at the end of an episode: thumbnail, name and a countdown button. -->
+<component name="NextCard" extends="Group">
+  <interface>
+    <field id="episode" type="assocarray" onChange="onEpisode" />
+    <field id="seconds" type="integer" onChange="onSeconds" />
+    <field id="action" type="string" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="NextCard.brs" />
+  <children>
+    <Rectangle width="700" height="330" color="0x0B0B0FE6" />
+    <Poster id="thumb" translation="[24,24]" width="320" height="180" loadWidth="320" loadHeight="180" loadDisplayMode="scaleToZoom" />
+    <Label translation="[364,28]" text="Siguiente episodio" color="0xA48BFFFF" font="font:SmallBoldSystemFont" />
+    <Label id="name" translation="[364,70]" width="312" wrap="true" maxLines="3" font="font:SmallSystemFont" />
+    <ButtonRow id="row" translation="[24,236]" />
+  </children>
+</component>
