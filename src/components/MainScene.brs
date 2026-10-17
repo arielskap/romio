@@ -8,9 +8,24 @@ sub init()
     m.bootFailed = false
     m.animDone = false
     anim = m.top.findNode("introAnim")
+    showIntroPhoto(anim)
     anim.observeField("state", "onIntroState")
     anim.control = "start"
     boot()
+end sub
+
+' With a photo the intro moves the logo to the right and stays longer, so the photo can be seen.
+sub showIntroPhoto(anim as object)
+    uri = Photos_next()
+    if uri = "" then return
+    photo = m.top.findNode("introPhoto")
+    photo.uri = uri
+    photo.visible = true
+    m.top.findNode("introLogo").translation = [1170, 330]
+    name = m.top.findNode("introName")
+    name.translation = [880, 620]
+    name.width = 820
+    anim.duration = 3.5
 end sub
 
 sub onIntroState(evt as object)

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A photo in a slightly tilted white frame, fitted inside a 560x800 box at the node's origin. Hidden until the photo loads. -->
+<component name="PhotoFrame" extends="Group">
+  <interface>
+    <field id="uri" type="string" onChange="onUri" />
+  </interface>
+  <script type="text/brightscript" uri="PhotoFrame.brs" />
+  <children>
+    <Group id="tilt" rotation="0.035" scaleRotateCenter="[280,400]" visible="false">
+      <Rectangle id="frame" color="0xFFFFFFFF" />
+      <Poster id="photo" loadDisplayMode="scaleToFit" />
+    </Group>
+  </children>
+</component>

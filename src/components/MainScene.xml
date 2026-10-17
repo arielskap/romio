@@ -3,13 +3,16 @@
   <script type="text/brightscript" uri="MainScene.brs" />
   <script type="text/brightscript" uri="pkg:/components/common/Ui.brs" />
   <script type="text/brightscript" uri="pkg:/source/lib/Intro.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Storage.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Photos.brs" />
   <children>
     <Rectangle width="1920" height="1080" color="0x0B0B0FFF" />
     <Group id="stack" />
     <Skeleton id="skeleton" layout="home" visible="false" />
     <!-- Same position and size as the splash image, so splash -> intro doesn't jump. -->
     <Group id="intro" scaleRotateCenter="[960,505]" opacity="0">
-      <Poster uri="pkg:/images/logo.png" translation="[840,330]" width="240" height="240" />
+      <PhotoFrame id="introPhoto" translation="[240,140]" visible="false" />
+      <Poster id="introLogo" uri="pkg:/images/logo.png" translation="[840,330]" width="240" height="240" />
       <Label id="introName" translation="[160,620]" width="1600" horizAlign="center" font="font:LargeBoldSystemFont" />
     </Group>
     <Animation id="introAnim" duration="2" repeat="false" easeFunction="linear">
