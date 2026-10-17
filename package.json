@@ -6,6 +6,7 @@
   "scripts": {
     "build": "bsc --project bsconfig.json",
     "brand": "node scripts/brand.mjs",
+    "photos": "node scripts/photos.mjs",
     "deploy": "node --env-file=.env scripts/deploy.mjs",
     "test": "node --env-file=.env scripts/test.mjs",
     "logs": "node --env-file=.env scripts/logs.mjs",

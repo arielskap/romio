@@ -13,6 +13,7 @@ All scripts read `.env` (`ROKU_HOST`, `ROKU_PASSWORD`, `STREMIO_EMAIL`, `STREMIO
 - `npm test` — compiles `bsconfig-test.json`, then runs Rooibos **on the device**. It only passes if the output contains `RESULT: Success`. To run a subset, annotate a suite or test with `@only` in its `.spec.bs` (remove before committing).
 - `npm run logs` — stream the device console (port 8085).
 - `npm run live-check` — Node script that walks login → addons → meta → streams → Real-Debrid → HLS → subtitles against the real services with the account in `.env`.
+- `npm run photos -- <dir>` — optional: resizes personal photos into `src/images/photos/` (git-ignored). The intro and the player's loading overlay show one (`Photos_next`, never the last one shown); without photos they look as usual.
 
 Device gotchas when running these:
 - The console port 8085 accepts one client. Stop `npm run logs` (or any `nc` to 8085) before `npm test`, or Rooibos fails with "already in use". A killed client can keep the port busy for a while.

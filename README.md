@@ -21,6 +21,7 @@ Cliente no oficial para Roku (modo desarrollador) que usa tu cuenta de Stremio: 
 | `npm test` | Corre los tests de Rooibos en el Roku (borra la sesión guardada: después hay que volver a iniciar sesión) |
 | `npm run live-check` | Recorre el flujo completo contra Stremio y Real-Debrid con tu cuenta |
 | `npm run logs` | Muestra el log del Roku (puerto 8085; cerralo antes de `npm test`, que usa el mismo puerto) |
+| `npm run photos -- <carpeta>` | Opcional: copia fotos propias a `src/images/photos` (ignorada por git) para mostrarlas en las pantallas de carga |
 
 ## En la tele
 
